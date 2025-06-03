@@ -3,6 +3,7 @@
 json 리스트 형태여야 함.
 '''
 import json
+from langchain_core.documents import Document
 
 
 
@@ -61,13 +62,12 @@ def to_plaintext(data: dict) -> str:
     return "".join(lines)
 
 
+
+
 '''
 input : document(Document 객체 list), data : 읽어들인 파일, index : 리스트 인덱스 번호
 output : None
 '''
-
-
-from langchain_core.documents import Document
 
 def make_post_docs(post_dict: dict) -> list[Document]:
     """

@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>맞춤형 취업 도우미 챗봇</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}"/>
+</head>
+<body>
+<div id="chat-container" class="container">
+    <header class="chat-header">
+        <h2>취업 도우미 챗봇</h2>
+        <form method="post" action="{% url 'logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" id="logout-btn" class="btn-secondary">로그아웃</button>
+        </form>
+    </header>
+
+    <div id="chat-box" class="chat-box" style="height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+        {% if chat_history.exists %}
+            {% for msg in chat_history %}
+                {% if msg.is_user %}
+                    <div class="chat-message user">{{ msg.message }}</div>
+                {% else %}
+                    <div class="chat-message bot">{{ msg.message }}</div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p class="chat-system">안녕하세요, {{ member.name }}님! 어떤 질문이 있으신가요?</p>
+        {% endif %}
+    </div>
+
+    <form id="chat-form" class="chat-form" method="post" action="{% url 'chat' %}">
+        <!-- CSRF 토큰 필수 -->
+        {% csrf_token %}
+
+        <input
+            type="text"
+            id="chat-input"
+            name="message"
+            placeholder="질문을 입력하세요..."
+            autocomplete="off"
+            required
+            style="width:80%; padding:8px;"
+        />
+        <button type="submit" class="btn-primary" style="padding:8px 12px;">전송</button>
+    </form>
+</div>
+
+<script src="{% static 'script.js' %}"></script>
+</body>
+</html>
