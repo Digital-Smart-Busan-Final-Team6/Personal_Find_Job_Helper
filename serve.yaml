@@ -1,0 +1,9 @@
+# serve.yaml
+servers:
+  - name: local-chat
+    type: langchain  # LangChain 체인을 감싸기 위한 타입
+    app: app:get_chain  # 모듈(app).함수(get_chain)
+    protocol: websocket  # 혹은 http
+    ui: true            # 내장 웹 UI 켜기
+    host: "0.0.0.0"
+    port: 8000
