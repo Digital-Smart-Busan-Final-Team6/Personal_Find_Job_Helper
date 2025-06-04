@@ -30,3 +30,5 @@ debugpy
 sse_starlette
 peft
 django
+matplot
+seaborn

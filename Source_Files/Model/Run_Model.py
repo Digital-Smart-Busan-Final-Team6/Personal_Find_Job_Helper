@@ -18,6 +18,16 @@ from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from konlpy.tag import Okt
 import pandas as pd
 from Source_Files.Model.setting_metadata import *
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, GenerationConfig
+from langchain_huggingface.llms import HuggingFacePipeline
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+import torch
+from pathlib import Path
+import os
+from dotenv import load_dotenv
+
 
 
 def load_env_variables_for_Local():
@@ -46,16 +56,6 @@ def load_env_variables_for_Colab():
     os.environ['LANGSMITH_API_KEY'] = userdata.get('LANGSMITH_API_KEY2')
 
 
-# ---------- tokenizers ----------------------------------------
-# okt = Okt()
-#
-#
-# def len_okt(t):  return len(okt.morphs(t))
-#
-#
-# def okt_tokenize(t): return okt.morphs(t)
-
-# konlpy Okt 를 지연 초기화하기 위한 래퍼
 _okt = None
 
 
@@ -116,7 +116,7 @@ def load_files(file_path: str, kind: str) -> list[Document]:
             else:
                 raise ValueError("Post JSON은 list 또는 dict 이어야 합니다.")
 
-            docs += make_post_docs(post_dict)
+            docs += make_post_docs(post_dict) # Document 객체로 변환
 
     # 2) TXT 처리
     if kind in ("txt", "all"):
@@ -139,52 +139,6 @@ from langchain_text_splitters import RecursiveJsonSplitter
 from tqdm.auto import tqdm
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
-
-
-# def split_docs_with_progress(
-#         docs: list[Document],
-#         filepath : str,
-#         chunk: int = 1000,
-#         overlap: int = 100,
-# ) -> list[Document]:
-#     """
-#     각 Document를 순회하며 TextSplitter를 적용하고,
-#     tqdm으로 진행률을 표시합니다.
-#     """
-#
-#     # 만약 docs 파일이 존재하면
-#     if os.path.exists(filepath+f'/{chunk}_{overlap}_docs'):
-#         with open(filepath+f'/{chunk}_{overlap}_docs', 'r', encoding='utf-8') as f:
-#             loaded = []
-#             for line in f:
-#                 record = json.loads(line)
-#                 loaded.append(Document(page_content=record["page_content"], metadata=record["metadata"]))
-#         return loaded
-#
-#     else:
-#
-#         splitter = RecursiveCharacterTextSplitter(
-#             chunk_size=chunk,
-#             chunk_overlap=overlap,
-#             length_function=len_okt
-#         )
-#         all_chunks: list[Document] = []
-#
-#         for doc in tqdm(docs, desc="문서 분할 중....", unit="doc"):
-#             # 각 Document마다 split_documents를 호출해도 되고,
-#             # 더 세밀하게는 splitter.split_text(doc.page_content)
-#             chunks = splitter.split_documents([doc])
-#             all_chunks.extend(chunks)
-#
-#         with open(filepath+f'/{chunk}_{overlap}_docs', 'w', encoding='utf-8') as f:
-#             for doc in all_chunks:
-#                 record = {
-#                     "page_content": doc.page_content,
-#                     "metadata": doc.metadata
-#                 }
-#                 f.write(json.dumps(record, ensure_ascii=False))
-#                 f.write("\n")
-#     return all_chunks
 
 def split_docs_with_progress(
         docs: list[Document],
@@ -294,13 +248,6 @@ def get_db(docs, embed, persist_dir: str):
     return db
 
 
-# 사용 예
-# db = get_db(documents, embedding_fn, "my_chroma_db")
-# 이후 추가 삽입 등 변경이 있으면:
-# db.add_documents(new_docs)
-# db.persist()
-
-
 # ---------- 4. Retriever --------------------------------------
 def build_retriever(mode: int, k: int, db, docs):
     # 1) Vector retriever (Chroma)
@@ -336,15 +283,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from transformers import pipeline
 from langchain_huggingface.llms import HuggingFacePipeline
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, GenerationConfig
-from langchain_huggingface.llms import HuggingFacePipeline
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-import torch
-from pathlib import Path
-import os
-from dotenv import load_dotenv
 
 def load_peft_model(model_name: str, device: str):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
