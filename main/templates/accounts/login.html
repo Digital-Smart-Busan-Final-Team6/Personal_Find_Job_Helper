@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login - Helper</title>
+  <style>
+    body {
+      margin: 0; padding: 0; height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #1f1f4a, #3d3d70);
+      font-family: 'Orbitron', sans-serif;
+      color: white;
+    }
+    .glass-card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 40px 60px;
+      backdrop-filter: blur(15px);
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.3);
+      width: 320px;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 12px 15px;
+      margin: 15px 0;
+      border: none;
+      border-radius: 10px;
+      outline: none;
+      font-size: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: 12px 0;
+      border: none;
+      border-radius: 10px;
+      background: #5a67d8;
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background: #434aa8;
+    }
+    a {
+      color: #aaaaff;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-card">
+    <h2>Login to Helper</h2>
+    <form method="POST" action="">
+      {% csrf_token %}
+      {{ form.username }}
+      {{ form.password }}
+      <button type="submit">Sign In</button>
+    </form>
+    <p>Don't have an account? <a href="{% url 'register' %}">Register</a></p>
+  </div>
+</body>
+</html>
