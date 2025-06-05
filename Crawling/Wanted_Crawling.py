@@ -1,10 +1,10 @@
 # 임포트 해야하는 것
 import logging
-import pandas as pd
 import random
-import requests
 import time
 
+import pandas as pd
+import requests
 from requests.exceptions import JSONDecodeError as ReqJSONDecodeError
 from tqdm import tqdm
 

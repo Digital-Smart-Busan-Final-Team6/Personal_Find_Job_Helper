@@ -1,19 +1,19 @@
 # -------- import & helpers ------------------------------------
-from langchain_core.callbacks import StreamingStdOutCallbackHandler
-from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
+from pathlib import Path
+
+import torch
+from dotenv import load_dotenv
+from langchain.retrievers import EnsembleRetriever
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers import EnsembleRetriever
-from transformers import GenerationConfig
+from langchain_core.callbacks import StreamingStdOutCallbackHandler
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-import torch
-from pathlib import Path
-from dotenv import load_dotenv
-
-
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from transformers import GenerationConfig
+from setting_metadata import *
 
 def load_env_variables_for_Local():
     """
@@ -421,7 +421,7 @@ def main(return_chain_only: bool = False):
         device = {1: "mps", 2: "cuda", 3: "cpu"}[int(input("디바이스(1:mps/2:cuda/3:cpu): "))]
         retriever_num = int(input("retriever (1 vec /2 bm25 /3 ensemble): "))
         k = int(input("k 개수를 입력해 주세요: "))
-        llm_model_num = int(input("LLM 모델 번호(1: gpt-4o-mini / 2: gemma3:4b / 3:qwen3:4b / 4:Private Model): "))
+        llm_model_num = int(input("LLM 모델 번호(1: gpt-4o-mini / 2: gemma3:4b / 3:qwen3:4b / 4:Private Run_Pipeline): "))
         llm_backend = int(input("LLM (1:OpenAI / 2:Ollama / 3: HuggingFace): "))
 
     # ② 파일 로드 → docs

@@ -32,3 +32,5 @@ peft
 django
 matplot
 seaborn
+openai
+serpapi

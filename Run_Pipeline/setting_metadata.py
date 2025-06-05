@@ -2,7 +2,6 @@
 경로의 json 파일 읽어오기
 json 리스트 형태여야 함.
 '''
-import json
 from langchain_core.documents import Document
 
 
@@ -64,20 +63,8 @@ def to_plaintext(data: dict) -> str:
 
 
 
-'''
-input : document(Document 객체 list), data : 읽어들인 파일, index : 리스트 인덱스 번호
-output : None
-'''
 
 def make_post_docs(post_dict: dict) -> list[Document]:
-    """
-    post_dict: {
-        "278301": { ...공고 상세 dict... },
-        "278604": { ... },
-         …
-    }
-    형태로, 최상위 키가 post_id일 때 사용합니다.
-    """
     docs = []
 
     for post_id, post in post_dict.items():
