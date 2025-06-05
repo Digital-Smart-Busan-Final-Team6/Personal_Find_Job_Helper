@@ -110,6 +110,18 @@
   <div class="container">
     <div class="glass-card">
       <h2 style="text-align: center; margin-bottom: 40px;">Register for Helper</h2>
+      {% if form.errors %}
+        <div style="color: red; margin-bottom: 20px;">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <p>{{ error }}</p>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
       <form method="POST" action="">
         {% csrf_token %}
 

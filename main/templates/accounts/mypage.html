@@ -11,23 +11,48 @@
         body {
             margin: 0;
             padding: 0;
-            background: linear-gradient(to right, #1f4037, #99f2c8); /* 더 고급스러운 그라데이션 */
+            /* 로그인, 홈, 회원가입과 비슷한 부드러운 블루 톤 그라데이션 */
+            background: linear-gradient(135deg, #6a8df0, #c2d1f0);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #fff;
+            color: #333;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            position: relative;
+        }
+
+        /* 좌측 상단 홈 아이콘 버튼 */
+        .home-icon-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            color: white;
+            transition: color 0.3s ease;
+            padding: 6px 8px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            user-select: none;
+        }
+
+        .home-icon-btn:hover {
+            color: #ffefc7;
+            background: rgba(255, 255, 255, 0.15);
         }
 
         .mypage-container {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
             padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            box-shadow: 0 6px 25px rgba(0,0,0,0.12);
             width: 100%;
             max-width: 600px;
+            color: #333;
         }
 
         .mypage-container h2 {
@@ -42,29 +67,36 @@
             margin-top: 15px;
             margin-bottom: 5px;
             font-weight: 500;
-            color: #f0f0f0;
+            color: #222;
         }
 
         input, textarea, select {
             width: 100%;
             padding: 12px;
-            border: none;
+            border: 1px solid #bbb;
             border-radius: 10px;
             margin-bottom: 15px;
             font-size: 14px;
-            background-color: rgba(255, 255, 255, 0.15);
-            color: white;
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #222;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: #6a8df0;
+            outline: none;
+            box-shadow: 0 0 6px rgba(106, 141, 240, 0.5);
         }
 
         input[readonly] {
-            background-color: rgba(255, 255, 255, 0.3);
+            background-color: #f0f0f0;
         }
 
-        button {
+        button[type="submit"] {
             width: 100%;
             padding: 12px;
             margin-top: 20px;
-            background: linear-gradient(to right, #00c6ff, #0072ff);
+            background: linear-gradient(135deg, #6a8df0, #3b57c1);
             border: none;
             border-radius: 10px;
             color: white;
@@ -72,45 +104,51 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(59, 87, 193, 0.4);
         }
 
-        button:hover {
-            background: linear-gradient(to right, #0072ff, #00c6ff);
-            transform: scale(1.02);
+        button[type="submit"]:hover {
+            background: linear-gradient(135deg, #3b57c1, #6a8df0);
+            transform: scale(1.04);
         }
 
         ul {
             margin-top: 20px;
-            color: #ffeaa7;
+            color: #d63031;
             list-style-type: disc;
             padding-left: 20px;
         }
     </style>
 </head>
 <body>
-        <div class="mypage-container">
-            <h2>MyPage</h2>
-    <form method="post" novalidate>
-    {% csrf_token %}
 
-    <label for="{{ form.career.id_for_label }}">주요 경력 / 프로젝트</label>
-    {{ form.career|add_class:"form-control" }}
+    <!-- 좌측 상단 홈 버튼 (아이콘) -->
+    <button class="home-icon-btn" onclick="location.href='/'" aria-label="홈으로 이동">
+        ←
+    </button>
 
-    <label for="{{ form.certifications.id_for_label }}">교육 / 자격증</label>
-    {{ form.certifications|add_class:"form-control" }}
+    <div class="mypage-container">
+        <h2>MyPage</h2>
+        <form method="post" novalidate>
+            {% csrf_token %}
 
-    <label for="{{ form.awards.id_for_label }}">기타 활동 / 수상내역</label>
-    {{ form.awards|add_class:"form-control" }}
+            <label for="{{ form.career.id_for_label }}">주요 경력 / 프로젝트</label>
+            {{ form.career|add_class:"form-control" }}
 
-    <label for="{{ form.activities.id_for_label }}">대외 활동</label>
-    {{ form.activities|add_class:"form-control" }}
+            <label for="{{ form.certifications.id_for_label }}">교육 / 자격증</label>
+            {{ form.certifications|add_class:"form-control" }}
 
-    <label for="{{ form.skills.id_for_label }}">기술 스택 / 자기소개</label>
-    {{ form.skills|add_class:"form-control" }}
+            <label for="{{ form.awards.id_for_label }}">기타 활동 / 수상내역</label>
+            {{ form.awards|add_class:"form-control" }}
 
-    <button type="submit">수정하기</button>
-</form>
+            <label for="{{ form.activities.id_for_label }}">대외 활동</label>
+            {{ form.activities|add_class:"form-control" }}
+
+            <label for="{{ form.skills.id_for_label }}">기술 스택 / 자기소개</label>
+            {{ form.skills|add_class:"form-control" }}
+
+            <button type="submit">수정하기</button>
+        </form>
 
         {% if messages %}
         <ul>

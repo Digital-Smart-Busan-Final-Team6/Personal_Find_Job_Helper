@@ -27,10 +27,12 @@ def register_view(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()  # User + UserProfile 생성
+            user = form.save()
             login(request, user)
             messages.success(request, '회원가입이 완료되었습니다. 환영합니다!')
             return redirect('home')
+        else:
+            messages.error(request, '회원가입에 실패했습니다. 입력 내용을 확인해주세요.')
     else:
         form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
