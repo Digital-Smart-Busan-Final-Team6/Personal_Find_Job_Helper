@@ -3,7 +3,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from accounts.forms import LoginForm, RegisterForm
+
+from accounts.forms import LoginForm, RegisterForm, ProfileUpdateForm
 from accounts.models import UserProfile
 
 def home(request):
@@ -29,18 +30,9 @@ def register_view(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            username = form.cleaned_data['username']
-            password1 = form.cleaned_data['password1']
-            password2 = form.cleaned_data['password2']
-
-            if User.objects.filter(username=username).exists():
-                messages.error(request, '이미 존재하는 사용자입니다.')
-            elif password1 != password2:
-                messages.error(request, '비밀번호가 일치하지 않습니다.')
-            else:
-                User.objects.create_user(username=username, password=password1)
-                messages.success(request, '회원가입이 완료되었습니다.')
-                return redirect('login')
+            user = form.save()  # RegisterForm이 User + UserProfile 생성
+            messages.success(request, '회원가입이 완료되었습니다.')
+            return redirect('login')
     else:
         form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
@@ -48,16 +40,16 @@ def register_view(request):
 @login_required
 def mypage_view(request):
     user = request.user
-    profile = user.profile
+    profile = user.profile  # UserProfile 객체
 
     if request.method == 'POST':
-        form = RegisterForm(request.POST, instance=profile)
+        form = ProfileUpdateForm(request.POST, instance=profile)
         if form.is_valid():
             form.save()
             messages.success(request, '정보가 성공적으로 수정되었습니다.')
             return redirect('mypage')
     else:
-        form = RegisterForm(instance=profile)
+        form = ProfileUpdateForm(instance=profile)
 
     return render(request, 'accounts/mypage.html', {
         'form': form,
