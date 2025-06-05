@@ -1,8 +1,10 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from accounts.forms import LoginForm, RegisterForm
+from accounts.models import UserProfile
 
 def home(request):
     return render(request, 'home.html')
@@ -43,8 +45,25 @@ def register_view(request):
         form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
 
+@login_required
 def mypage_view(request):
-    return render(request, 'mypage.html')
+    user = request.user
+    profile = user.profile
+
+    if request.method == 'POST':
+        form = RegisterForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, '정보가 성공적으로 수정되었습니다.')
+            return redirect('mypage')
+    else:
+        form = RegisterForm(instance=profile)
+
+    return render(request, 'accounts/mypage.html', {
+        'form': form,
+        'username': user.username,
+        'email': user.email,
+    })
 
 def logout_view(request):
     logout(request)

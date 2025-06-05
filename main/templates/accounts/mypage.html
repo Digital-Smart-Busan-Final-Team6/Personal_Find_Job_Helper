@@ -1,0 +1,130 @@
+{% load widget_tweaks %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>MyPage</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #1f4037, #99f2c8); /* 더 고급스러운 그라데이션 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .mypage-container {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .mypage-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #f0f0f0;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        input[readonly] {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            background: linear-gradient(to right, #0072ff, #00c6ff);
+            transform: scale(1.02);
+        }
+
+        ul {
+            margin-top: 20px;
+            color: #ffeaa7;
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="mypage-container">
+        <h2>MyPage</h2>
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <label for="id_username">아이디</label>
+            <input type="text" id="id_username" name="username" value="{{ username }}" readonly>
+
+            <label for="id_email">이메일</label>
+            <input type="email" id="id_email" name="email" value="{{ email }}" readonly>
+
+            {{ form.career.label_tag }}
+            {{ form.career|add_class:"form-control" }}
+
+            {{ form.certificates.label_tag }}
+            {{ form.certificates|add_class:"form-control" }}
+
+            {{ form.awards.label_tag }}
+            {{ form.awards|add_class:"form-control" }}
+
+            {{ form.external_activities.label_tag }}
+            {{ form.external_activities|add_class:"form-control" }}
+
+            {{ form.skills.label_tag }}
+            {{ form.skills|add_class:"form-control" }}
+
+            <button type="submit">수정하기</button>
+        </form>
+
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</body>
+</html>

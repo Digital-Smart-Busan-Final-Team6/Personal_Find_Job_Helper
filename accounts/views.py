@@ -1,8 +1,11 @@
+# accounts/views.py
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.contrib import messages
-from .forms import LoginForm, RegisterForm
+from .forms import LoginForm, RegisterForm, ProfileUpdateForm
+from .models import UserProfile
 
 def login_view(request):
     if request.method == 'POST':
@@ -26,12 +29,56 @@ def register_view(request):
         if form.is_valid():
             username = form.cleaned_data['username']
             password = form.cleaned_data['password1']
+            email = form.cleaned_data['email']
+
             if User.objects.filter(username=username).exists():
                 messages.error(request, '이미 존재하는 사용자입니다.')
             else:
-                User.objects.create_user(username=username, password=password)
-                messages.success(request, '회원가입이 완료되었습니다.')
-                return redirect('login')
+                user = User.objects.create_user(username=username, password=password, email=email)
+
+                # 사용자 추가 정보 저장
+                user.profile.career = form.cleaned_data.get('career', '')
+                user.profile.certifications = form.cleaned_data.get('certifications', '')
+                user.profile.awards = form.cleaned_data.get('awards', '')
+                user.profile.activities = form.cleaned_data.get('activities', '')
+                user.profile.skills = form.cleaned_data.get('skills', '')
+                user.profile.save()
+
+                # 자동 로그인 후 home으로 이동
+                login(request, user)
+                messages.success(request, '회원가입이 완료되었습니다. 환영합니다!')
+                return redirect('home')
     else:
         form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
+
+@login_required
+def mypage_view(request):
+    user = request.user
+    profile = user.profile
+
+    if request.method == 'POST':
+        form = ProfileUpdateForm(request.POST)
+        if form.is_valid():
+            profile.career = form.cleaned_data['career']
+            profile.certifications = form.cleaned_data['certificates']
+            profile.awards = form.cleaned_data['awards']
+            profile.activities = form.cleaned_data['external_activities']
+            profile.skills = form.cleaned_data['skills']
+            profile.save()
+            messages.success(request, "프로필이 성공적으로 수정되었습니다.")
+            return redirect('mypage')
+    else:
+        form = ProfileUpdateForm(initial={
+            'career': profile.career,
+            'certificates': profile.certifications,
+            'awards': profile.awards,
+            'external_activities': profile.activities,
+            'skills': profile.skills,
+        })
+
+    return render(request, 'accounts/mypage.html', {
+        'form': form,
+        'username': user.username,
+        'email': user.email,
+    })
