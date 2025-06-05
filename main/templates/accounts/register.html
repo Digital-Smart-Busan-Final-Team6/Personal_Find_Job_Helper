@@ -3,89 +3,189 @@
 <head>
   <meta charset="UTF-8" />
   <title>Register - Helper</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <style>
-    body {
-      margin: 0; padding: 0; height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: linear-gradient(135deg, #1f1f4a, #3d3d70);
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
       font-family: 'Orbitron', sans-serif;
       color: white;
+      overflow: hidden;
+      background: linear-gradient(rgba(0, 40, 90, 0.6), rgba(0, 20, 60, 0.9)); /* 파란 계열 */
     }
-    textarea {
+
+    #particles-js {
+      position: fixed;
       width: 100%;
-      padding: 12px 15px;
-      margin: 15px 0;
-      border: none;
-      border-radius: 10px;
-      outline: none;
-      font-size: 1rem;
-      resize: vertical; /* 높이 조절 가능 */
+      height: 100%;
+      z-index: -1;
     }
+
     .glass-card {
       background: rgba(255,255,255,0.1);
       border-radius: 20px;
       padding: 40px 60px;
       backdrop-filter: blur(15px);
       box-shadow: 0 8px 32px rgba(31, 38, 135, 0.3);
-      width: 320px;
-      text-align: center;
+      width: 400px;
+      text-align: left;
     }
-    input {
+
+    .container {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 0;
+    }
+
+    .form-label {
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+      color: white;
+      display: block;
+    }
+
+    .form-input, textarea {
       width: 100%;
+      box-sizing: border-box;
       padding: 12px 15px;
-      margin: 15px 0;
+      margin-bottom: 20px;
       border: none;
       border-radius: 10px;
       outline: none;
       font-size: 1rem;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      resize: none;
     }
+
+    .form-input::placeholder, textarea::placeholder {
+      color: #ccc;
+    }
+
     button {
       width: 100%;
       padding: 12px 0;
       border: none;
       border-radius: 10px;
-      background: #5a67d8;
+      background: linear-gradient(135deg, #4facfe, #00f2fe); /* 밝은 파란색 그라데이션 */
       color: white;
       font-weight: bold;
       font-size: 1.1rem;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: all 0.3s ease;
+      margin-top: 24px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
     }
+
     button:hover {
-      background: #434aa8;
+      background: linear-gradient(135deg, #00c6ff, #0072ff);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
     }
+
     a {
-      color: #aaaaff;
+      color: #aad8ff;
       text-decoration: none;
       font-size: 0.9rem;
+      display: block;
+      text-align: center;
+      margin-top: 15px;
     }
+
     a:hover {
       text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <div class="glass-card">
-    <h2>Create an Account</h2>
-    <form method="POST" action="">
-      {% csrf_token %}
-      <input type="text" name="username" placeholder="Username" required />
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password1" placeholder="Password" required />
-      <input type="password" name="password2" placeholder="Confirm Password" required />
-    
-      <textarea name="career" placeholder="경력사항" rows="3"></textarea>
-      <textarea name="certifications" placeholder="자격증" rows="3"></textarea>
-      <textarea name="awards" placeholder="수상 내역" rows="3"></textarea>
-      <textarea name="activities" placeholder="대외 활동" rows="3"></textarea>
-      <textarea name="skills" placeholder="기술 스택(스킬)" rows="3"></textarea>
-    
-      <button type="submit">Register</button>
-    </form>
-    
-    <p>Already have an account? <a href="{% url 'login' %}">Sign In</a></p>
+  <div id="particles-js"></div>
+
+  <div class="container">
+    <div class="glass-card">
+      <h2 style="text-align: center;">Register for Helper</h2>
+      <form method="POST" action="">
+        {% csrf_token %}
+        
+        <label class="form-label" for="username">아이디</label>
+        <input type="text" name="username" id="username" class="form-input" placeholder="Username" required />
+
+        <label class="form-label" for="email">이메일</label>
+        <input type="email" name="email" id="email" class="form-input" placeholder="Email" required />
+
+        <label class="form-label" for="password1">비밀번호</label>
+        <input type="password" name="password1" id="password1" class="form-input" placeholder="Password" required />
+
+        <label class="form-label" for="password2">비밀번호 확인</label>
+        <input type="password" name="password2" id="password2" class="form-input" placeholder="Confirm Password" required />
+
+        <label class="form-label" for="career">경력사항</label>
+        <textarea name="career" id="career" rows="3" placeholder="경력사항" class="form-input"></textarea>
+
+        <label class="form-label" for="certifications">자격증</label>
+        <textarea name="certifications" id="certifications" rows="3" placeholder="자격증" class="form-input"></textarea>
+
+        <label class="form-label" for="awards">수상 내역</label>
+        <textarea name="awards" id="awards" rows="3" placeholder="수상 내역" class="form-input"></textarea>
+
+        <label class="form-label" for="activities">대외 활동</label>
+        <textarea name="activities" id="activities" rows="3" placeholder="대외 활동" class="form-input"></textarea>
+
+        <label class="form-label" for="skills">기술 스택(스킬)</label>
+        <textarea name="skills" id="skills" rows="3" placeholder="기술 스택(스킬)" class="form-input"></textarea>
+
+        <button type="submit">Sign Up</button>
+      </form>
+      <a href="{% url 'login' %}">Already have an account? Login</a>
+    </div>
   </div>
+
+  <script>
+    particlesJS("particles-js", {
+      particles: {
+        number: {
+          value: 140,
+          density: { enable: true, value_area: 1000 }
+        },
+        color: { value: "#ffffff" },
+        shape: { type: "circle" },
+        opacity: {
+          value: 0.6,
+          random: true,
+          anim: {
+            enable: true,
+            speed: 0.7,
+            opacity_min: 0.1,
+            sync: false
+          }
+        },
+        size: {
+          value: 4,
+          random: true
+        },
+        move: {
+          enable: true,
+          speed: 0.7,
+          direction: "none",
+          random: true,
+          straight: false,
+          out_mode: "out"
+        },
+        line_linked: {
+          enable: false
+        }
+      },
+      interactivity: {
+        events: {
+          onhover: { enable: false },
+          onclick: { enable: false }
+        }
+      },
+      retina_detect: true
+    });
+  </script>
 </body>
 </html>
