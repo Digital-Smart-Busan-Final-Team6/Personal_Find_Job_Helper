@@ -1,31 +1,16 @@
 # -------- import & helpers ------------------------------------
-from pathlib import Path
-import json, os
-from dotenv import load_dotenv
-from langchain.schema import Document
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_core.callbacks import StreamingStdOutCallbackHandler
-from langchain_text_splitters import RecursiveCharacterTextSplitter, RecursiveJsonSplitter
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from konlpy.tag import Okt
-import pandas as pd
-from Source_Files.Model.setting_metadata import *
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, GenerationConfig
-from langchain_huggingface.llms import HuggingFacePipeline
+from transformers import GenerationConfig
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 import torch
 from pathlib import Path
-import os
 from dotenv import load_dotenv
 
 
@@ -38,7 +23,7 @@ def load_env_variables_for_Local():
     # 현재 스크립트의 상대 경로로 설정합니다.
     # load_dotenv(dotenv_path='../../.env')
     # 절대 경로로 설정합니다.
-    load_dotenv(dotenv_path='../../.env')
+    load_dotenv(dotenv_path='../.env')
 
     os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
     os.environ['LANGSMITH_ENDPOINT'] = os.getenv('LANGSMITH_ENDPOINT')
@@ -134,9 +119,7 @@ def load_files(file_path: str, kind: str) -> list[Document]:
 
 
 # ---------- 2. 스플리터 ---------------------------------------
-from langchain_text_splitters import RecursiveJsonSplitter
 
-from tqdm.auto import tqdm
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
@@ -207,11 +190,6 @@ def load_embed(device: str, model_name: str):
 
 
 # 2) Chroma DB ─────────────────────────────────────────
-from langchain_chroma import Chroma
-from pathlib import Path
-
-from pathlib import Path
-from langchain_chroma import Chroma
 
 from pathlib import Path
 from tqdm.auto import tqdm
@@ -402,7 +380,7 @@ from langchain.chains import RetrievalQA
 
 def main(return_chain_only: bool = False):
     # ① 환경 변수 로드
-    if os.path.exists("../../.env"):
+    if os.path.exists("../.env"):
         load_env_variables_for_Local()
     # else:
     #     load_env_variables_for_Colab()
@@ -436,7 +414,7 @@ def main(return_chain_only: bool = False):
     else:
         # 기존 인터랙티브
         kind = input("파일 종류(json/txt/all): ").strip().lower()
-        file_path = "../../Data_Files"
+        file_path = "../Data_Files"
         chunk_size = int(input("청크 사이즈(기본 1000): "))
         overlap_size = int(input("오버랩 사이즈(기본 50): "))
         persist_dir = f'../../Data_Files/{kind}_{chunk_size}'
