@@ -53,29 +53,19 @@ def register_view(request):
     return render(request, 'accounts/register.html', {'form': form})
 
 @login_required
+@login_required
 def mypage_view(request):
     user = request.user
     profile = user.profile
 
     if request.method == 'POST':
-        form = ProfileUpdateForm(request.POST)
+        form = ProfileUpdateForm(request.POST, instance=profile)
         if form.is_valid():
-            profile.career = form.cleaned_data['career']
-            profile.certifications = form.cleaned_data['certificates']
-            profile.awards = form.cleaned_data['awards']
-            profile.activities = form.cleaned_data['external_activities']
-            profile.skills = form.cleaned_data['skills']
-            profile.save()
+            form.save()
             messages.success(request, "프로필이 성공적으로 수정되었습니다.")
             return redirect('mypage')
     else:
-        form = ProfileUpdateForm(initial={
-            'career': profile.career,
-            'certificates': profile.certifications,
-            'awards': profile.awards,
-            'external_activities': profile.activities,
-            'skills': profile.skills,
-        })
+        form = ProfileUpdateForm(instance=profile)
 
     return render(request, 'accounts/mypage.html', {
         'form': form,

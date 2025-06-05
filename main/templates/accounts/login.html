@@ -6,6 +6,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <style>
+    
+    .zoom-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1.25);  /* 중심이 화면 중앙 + 125% 확대 */
+      transform-origin: center center;
+    }
+
     html, body {
       margin: 0;
       padding: 0;
@@ -40,18 +49,27 @@
       align-items: center;
     }
 
+    .form-label {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: block;
+      text-align: left;
+    }
+
     .form-input {
       width: 100%;
-      box-sizing: border-box;  /* 중요! padding 포함한 전체 크기 맞춤 */
-      padding: 12px 15px;
-      margin: 15px 0;
+      box-sizing: border-box;
+      padding: 16px 20px;
+      margin-bottom: 24px;
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       outline: none;
       font-size: 1rem;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.25);
       color: white;
-}
+    }
+
 
     .form-input::placeholder {
       color: #ccc;
@@ -92,19 +110,28 @@
 <body>
   <div id="particles-js"></div>
 
-  <div class="container">
-    <div class="glass-card">
-      <h2>Login to Helper</h2>
-      <form method="POST" action="" onsubmit="showSpinner()">
-        {% csrf_token %}
-        {{ form.username }}
-        {{ form.password }}
-        <button type="submit" id="login-button">
-          <span class="spinner" id="spinner"></span>
-          Sign In
-        </button>
-      </form>
-      <p style="margin-top: 15px;">Don't have an account? <a href="{% url 'register' %}">Register</a></p>
+  <!-- ✅ 확대 적용할 전체 콘텐츠를 래핑할 div 추가 -->
+  <div class="zoom-wrapper">
+    <div class="container">
+      <div class="glass-card">
+        <h2 style="text-align: center; margin-bottom: 40px;">Login to Helper</h2>
+        <form method="POST" action="" onsubmit="showSpinner()">
+          {% csrf_token %}
+
+          <label class="form-label" for="username">ID</label>
+          <input type="text" name="username" id="username" class="form-input" required />
+
+          <label class="form-label" for="password">PW</label>
+          <input type="password" name="password" id="password" class="form-input" required />
+
+          <button type="submit" id="login-button">
+            <span class="spinner" id="spinner"></span>
+            Sign In
+          </button>
+        </form>
+
+        <a href="{% url 'register' %}">계정이 없으신가요? 회원가입</a>
+      </div>
     </div>
   </div>
 

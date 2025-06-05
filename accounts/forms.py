@@ -1,6 +1,9 @@
+# accounts/forms.py
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from .models import UserProfile
 
 class LoginForm(forms.Form):
     username = forms.CharField(label='ID', max_length=150, widget=forms.TextInput(attrs={'class': 'form-input'}))
@@ -15,21 +18,31 @@ class RegisterForm(UserCreationForm):
     activities = forms.CharField(label='대외 활동', widget=forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}), required=False)
     skills = forms.CharField(label='기술 스택', widget=forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}), required=False)
 
-class ProfileUpdateForm(forms.Form):
-    career = forms.CharField(label='경력사항', widget=forms.Textarea(attrs={'class':'form-textarea', 'rows':3}), required=False)
-    certificates = forms.CharField(label='자격증', widget=forms.Textarea(attrs={'class':'form-textarea', 'rows':3}), required=False)
-    awards = forms.CharField(label='수상 내역', widget=forms.Textarea(attrs={'class':'form-textarea', 'rows':3}), required=False)
-    external_activities = forms.CharField(label='대외 활동', widget=forms.Textarea(attrs={'class':'form-textarea', 'rows':3}), required=False)
-    skills = forms.CharField(label='기술 스택', widget=forms.Textarea(attrs={'class':'form-textarea', 'rows':3}), required=False)
-
-
     class Meta:
         model = User
-        fields = ['username', 'email', 'password1', 'password2', 'career', 'certifications', 'awards', 'activities', 'skills']
+        fields = ['username', 'email', 'password1', 'password2']
 
-    def clean(self):
-        cleaned_data = super().clean()
-        pw1 = cleaned_data.get('password1')
-        pw2 = cleaned_data.get('password2')
-        if pw1 and pw2 and pw1 != pw2:
-            raise forms.ValidationError("비밀번호가 일치하지 않습니다.")
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            UserProfile.objects.create(
+                user=user,
+                career=self.cleaned_data['career'],
+                certifications=self.cleaned_data['certifications'],
+                awards=self.cleaned_data['awards'],
+                activities=self.cleaned_data['activities'],
+                skills=self.cleaned_data['skills']
+            )
+        return user
+
+class ProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['career', 'certifications', 'awards', 'activities', 'skills']
+        widgets = {
+            'career': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+            'certifications': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+            'awards': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+            'activities': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+            'skills': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+        }
