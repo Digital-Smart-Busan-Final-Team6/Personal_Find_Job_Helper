@@ -49,8 +49,8 @@ def main(return_chain_only: bool = False):
         device         = "mps"
         retriever_mode = 1
         k              = 3
-        engine_num     = 1
-        backend_num    = 1
+        engine_num     = 2
+        backend_num    = 2
 
 
     # ③ 문서 로드
@@ -93,7 +93,7 @@ def main(return_chain_only: bool = False):
         else:
             # RetrievalQA (RetrievalQA 체인)
             from langchain.schema import Document
-            print(chain.invoke(q))
+            chain.invoke(q)
 
 
 if __name__ == "__main__":
