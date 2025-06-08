@@ -34,3 +34,4 @@ matplot
 seaborn
 openai
 serpapi
+selenium
