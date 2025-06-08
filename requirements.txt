@@ -29,3 +29,9 @@ torchaudio
 debugpy
 sse_starlette
 peft
+django
+matplot
+seaborn
+openai
+serpapi
+selenium

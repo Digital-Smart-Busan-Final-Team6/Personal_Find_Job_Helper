@@ -1,24 +1,19 @@
 # -------- import & helpers ------------------------------------
 from pathlib import Path
-import json, os
-from dotenv import load_dotenv
-from langchain.schema import Document
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain_core.callbacks import StreamingStdOutCallbackHandler
-from langchain_text_splitters import RecursiveCharacterTextSplitter, RecursiveJsonSplitter
-from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
-from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers import EnsembleRetriever
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from konlpy.tag import Okt
-import pandas as pd
-from Source_Files.Model.setting_metadata import *
 
+import torch
+from dotenv import load_dotenv
+from langchain.retrievers import EnsembleRetriever
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.retrievers import BM25Retriever
+from langchain_core.callbacks import StreamingStdOutCallbackHandler
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from transformers import GenerationConfig
+from setting_metadata import *
 
 def load_env_variables_for_Local():
     """
@@ -28,7 +23,7 @@ def load_env_variables_for_Local():
     # 현재 스크립트의 상대 경로로 설정합니다.
     # load_dotenv(dotenv_path='../../.env')
     # 절대 경로로 설정합니다.
-    load_dotenv(dotenv_path='../../.env')
+    load_dotenv(dotenv_path='../.env')
 
     os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
     os.environ['LANGSMITH_ENDPOINT'] = os.getenv('LANGSMITH_ENDPOINT')
@@ -46,16 +41,6 @@ def load_env_variables_for_Colab():
     os.environ['LANGSMITH_API_KEY'] = userdata.get('LANGSMITH_API_KEY2')
 
 
-# ---------- tokenizers ----------------------------------------
-# okt = Okt()
-#
-#
-# def len_okt(t):  return len(okt.morphs(t))
-#
-#
-# def okt_tokenize(t): return okt.morphs(t)
-
-# konlpy Okt 를 지연 초기화하기 위한 래퍼
 _okt = None
 
 
@@ -116,7 +101,7 @@ def load_files(file_path: str, kind: str) -> list[Document]:
             else:
                 raise ValueError("Post JSON은 list 또는 dict 이어야 합니다.")
 
-            docs += make_post_docs(post_dict)
+            docs += make_post_docs(post_dict) # Document 객체로 변환
 
     # 2) TXT 처리
     if kind in ("txt", "all"):
@@ -134,57 +119,9 @@ def load_files(file_path: str, kind: str) -> list[Document]:
 
 
 # ---------- 2. 스플리터 ---------------------------------------
-from langchain_text_splitters import RecursiveJsonSplitter
 
-from tqdm.auto import tqdm
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
-
-
-# def split_docs_with_progress(
-#         docs: list[Document],
-#         filepath : str,
-#         chunk: int = 1000,
-#         overlap: int = 100,
-# ) -> list[Document]:
-#     """
-#     각 Document를 순회하며 TextSplitter를 적용하고,
-#     tqdm으로 진행률을 표시합니다.
-#     """
-#
-#     # 만약 docs 파일이 존재하면
-#     if os.path.exists(filepath+f'/{chunk}_{overlap}_docs'):
-#         with open(filepath+f'/{chunk}_{overlap}_docs', 'r', encoding='utf-8') as f:
-#             loaded = []
-#             for line in f:
-#                 record = json.loads(line)
-#                 loaded.append(Document(page_content=record["page_content"], metadata=record["metadata"]))
-#         return loaded
-#
-#     else:
-#
-#         splitter = RecursiveCharacterTextSplitter(
-#             chunk_size=chunk,
-#             chunk_overlap=overlap,
-#             length_function=len_okt
-#         )
-#         all_chunks: list[Document] = []
-#
-#         for doc in tqdm(docs, desc="문서 분할 중....", unit="doc"):
-#             # 각 Document마다 split_documents를 호출해도 되고,
-#             # 더 세밀하게는 splitter.split_text(doc.page_content)
-#             chunks = splitter.split_documents([doc])
-#             all_chunks.extend(chunks)
-#
-#         with open(filepath+f'/{chunk}_{overlap}_docs', 'w', encoding='utf-8') as f:
-#             for doc in all_chunks:
-#                 record = {
-#                     "page_content": doc.page_content,
-#                     "metadata": doc.metadata
-#                 }
-#                 f.write(json.dumps(record, ensure_ascii=False))
-#                 f.write("\n")
-#     return all_chunks
 
 def split_docs_with_progress(
         docs: list[Document],
@@ -253,11 +190,6 @@ def load_embed(device: str, model_name: str):
 
 
 # 2) Chroma DB ─────────────────────────────────────────
-from langchain_chroma import Chroma
-from pathlib import Path
-
-from pathlib import Path
-from langchain_chroma import Chroma
 
 from pathlib import Path
 from tqdm.auto import tqdm
@@ -292,13 +224,6 @@ def get_db(docs, embed, persist_dir: str):
         # db._client.persist()
         print('▶ 새 DB 저장 완료')
     return db
-
-
-# 사용 예
-# db = get_db(documents, embedding_fn, "my_chroma_db")
-# 이후 추가 삽입 등 변경이 있으면:
-# db.add_documents(new_docs)
-# db.persist()
 
 
 # ---------- 4. Retriever --------------------------------------
@@ -336,15 +261,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from transformers import pipeline
 from langchain_huggingface.llms import HuggingFacePipeline
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, GenerationConfig
-from langchain_huggingface.llms import HuggingFacePipeline
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-import torch
-from pathlib import Path
-import os
-from dotenv import load_dotenv
 
 def load_peft_model(model_name: str, device: str):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -464,7 +380,7 @@ from langchain.chains import RetrievalQA
 
 def main(return_chain_only: bool = False):
     # ① 환경 변수 로드
-    if os.path.exists("../../.env"):
+    if os.path.exists("../.env"):
         load_env_variables_for_Local()
     # else:
     #     load_env_variables_for_Colab()
@@ -498,14 +414,14 @@ def main(return_chain_only: bool = False):
     else:
         # 기존 인터랙티브
         kind = input("파일 종류(json/txt/all): ").strip().lower()
-        file_path = "../../Data_Files"
+        file_path = "../Data_Files"
         chunk_size = int(input("청크 사이즈(기본 1000): "))
         overlap_size = int(input("오버랩 사이즈(기본 50): "))
         persist_dir = f'../../Data_Files/{kind}_{chunk_size}'
         device = {1: "mps", 2: "cuda", 3: "cpu"}[int(input("디바이스(1:mps/2:cuda/3:cpu): "))]
         retriever_num = int(input("retriever (1 vec /2 bm25 /3 ensemble): "))
         k = int(input("k 개수를 입력해 주세요: "))
-        llm_model_num = int(input("LLM 모델 번호(1: gpt-4o-mini / 2: gemma3:4b / 3:qwen3:4b / 4:Private Model): "))
+        llm_model_num = int(input("LLM 모델 번호(1: gpt-4o-mini / 2: gemma3:4b / 3:qwen3:4b / 4:Private Run_Pipeline): "))
         llm_backend = int(input("LLM (1:OpenAI / 2:Ollama / 3: HuggingFace): "))
 
     # ② 파일 로드 → docs

@@ -1,11 +1,13 @@
 # 임포트 해야하는 것
-import time
-import requests
-from tqdm import tqdm
-import pandas as pd
 import json
-from bs4 import BeautifulSoup
 import re
+import time
+
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from tqdm import tqdm
+
 # 점핏 메인 페이지의 url입니다
 MAIN_URL = "https://jumpit-api.saramin.co.kr/api/positions?sort=rsp_rate&highlight=false&page="
 DETAIL_URL = 'https://jumpit.saramin.co.kr/position/'
