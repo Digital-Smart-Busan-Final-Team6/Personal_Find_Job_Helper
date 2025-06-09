@@ -7,6 +7,12 @@ from django.contrib import messages
 from accounts.forms import LoginForm, RegisterForm, ProfileUpdateForm
 from accounts.models import UserProfile
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+from .chain import chain # chain.py에서 모듈화 해둔 chain
+
 def home(request):
     return render(request, 'home.html')
 
@@ -61,3 +67,18 @@ def logout_view(request):
     logout(request)
     messages.success(request, '로그아웃되었습니다.')
     return redirect('home')
+
+@csrf_exempt
+def chat_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_input = data.get('message', '').strip()
+            if not user_input:
+                return JsonResponse({'response': '질문을 입력해주세요.'})
+            
+            # LangChain 처리
+            result = chain.invoke(user_input)
+            return JsonResponse({'response': result})
+        except Exception as e:
+            return JsonResponse({'response': f'에러 발생: {str(e)}'})

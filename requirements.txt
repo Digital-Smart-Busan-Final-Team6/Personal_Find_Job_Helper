@@ -30,6 +30,7 @@ debugpy
 sse_starlette
 peft
 django
+django-widget-tweaks
 matplot
 seaborn
 openai

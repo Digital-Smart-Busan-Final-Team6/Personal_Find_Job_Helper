@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  {% csrf_token %}
   <meta charset="UTF-8">
   <title>Helper</title>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
@@ -196,24 +197,54 @@
     const homeContainer = document.getElementById("home-container");
     const chatInputContainer = document.getElementById("chat-input-container");
 
-    function appendMessage(message, sender) {
-      const msg = document.createElement("div");
-      msg.className = `message ${sender}`;
-      msg.textContent = message;
-      chatbox.appendChild(msg);
-      chatbox.scrollTop = chatbox.scrollHeight;
-    }
-
-    function simulateBotResponse(userMessage) {
-      setTimeout(() => {
-        appendMessage(`'${userMessage}'에 대한 답변입니다.`, "bot");
-      }, 800);
-    }
-
-    function sendMessage(message) {
+    // chat_api 와 home에 있는 채팅창 연동하기
+    async function sendMessage(message) {
       if (!message.trim()) return;
+  
       appendMessage(message, "user");
-      simulateBotResponse(message);
+  
+      try {
+        const response = await fetch("/chat/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken") // CSRF 토큰 포함
+          },
+          body: JSON.stringify({ message: message })
+        });
+  
+        const data = await response.json();
+        appendMessage(data.response, "bot");
+      } catch (error) {
+        appendMessage("에러가 발생했어요. 잠시 후 다시 시도해 주세요.", "bot");
+        console.error("Error:", error);
+      }
+    }
+    
+    function appendMessage(message, sender) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message");
+      msgDiv.classList.add(sender);
+      msgDiv.textContent = message;
+      chatbox.appendChild(msgDiv);
+      chatbox.scrollTop = chatbox.scrollHeight;  // 자동 스크롤 맨 아래로
+    }
+    
+    // CSRF 토큰 가져오기 함수
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          // 쿠키 이름으로 시작하는지 확인
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
     }
 
     document.getElementById("start-chat").addEventListener("click", () => {
