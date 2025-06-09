@@ -1,12 +1,12 @@
 # 임포트 해야하는 것
+import logging
+import random
 import time
-import requests
-from tqdm import tqdm
+
 import pandas as pd
-import json
-from bs4 import BeautifulSoup
-import re
-from Data_Analysis import *
+import requests
+from requests.exceptions import JSONDecodeError as ReqJSONDecodeError
+from tqdm import tqdm
 
 # 점핏 메인 페이지의 url입니다
 MAIN_URL = "https://www.wanted.co.kr/wdlist?country=kr&job_sort=job.popularity_order&years=-1&locations=all/offset="
@@ -41,48 +41,6 @@ def get_wanted_main_crawling():
     pbar.close()
     return posts
 
-
-# def get_wanted_main_crawling():
-#     offset = 0
-#     limit = 20
-#     posts = {}                       # key: 공고 id, value: 공고 json
-#
-#     pbar = tqdm(desc="Fetching job posts", unit="post")
-#
-#     while True:
-#         url = (
-#             "https://www.wanted.co.kr/api/chaos/navigation/v1/results?"
-#             "1747219507653=&country=kr&job_sort=job.popularity_order&"
-#             f"years=-1&locations=all&limit={limit}&offset={offset}"
-#         )
-#         response = requests.get(url, timeout=10)
-#         response.raise_for_status()                     # 네트워크 오류 감지
-#         data = response.json()
-#
-#         # ────────────────────────────────────────────────
-#         # ① API는 `data` 키 아래에 공고 리스트를 준다
-#         # ────────────────────────────────────────────────
-#         one_page_posts = data.get("data", [])
-#
-#         # one_page_posts(=list)를 {id: post} 형태로 변환
-#         page_dict = {post["id"]: post for post in one_page_posts}
-#
-#         # ② 딕셔너리끼리 병합  (동일 id가 있으면 최신 정보로 덮어씀)
-#         posts.update(page_dict)
-#
-#         if not one_page_posts:       # 더 이상 데이터가 없으면 종료
-#             break
-#
-#         offset += limit
-#         pbar.update(len(one_page_posts))
-#
-#     pbar.close()
-#     return posts
-
-
-import time, random, logging, requests, pandas as pd
-from tqdm import tqdm
-from requests.exceptions import JSONDecodeError as ReqJSONDecodeError
 
 HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
