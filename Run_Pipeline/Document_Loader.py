@@ -2,7 +2,6 @@ import os
 import json
 from pathlib import Path
 from typing import List
-from langchain.schema import Document
 from langchain_community.document_loaders import DirectoryLoader
 from setting_metadata import *
 
