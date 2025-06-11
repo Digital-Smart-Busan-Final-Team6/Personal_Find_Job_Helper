@@ -214,7 +214,10 @@
         });
   
         const data = await response.json();
-        appendMessage(data.response, "bot");
+        const botMessage = typeof data.response === "string" //data.response가 문자열인지 확인
+          ? data.response
+          : JSON.stringify(data.response);
+        appendMessage(botMessage, "bot");
       } catch (error) {
         appendMessage("에러가 발생했어요. 잠시 후 다시 시도해 주세요.", "bot");
         console.error("Error:", error);

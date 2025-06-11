@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 from langchain.schema import Document
 from langchain_community.document_loaders import DirectoryLoader
-from setting_metadata import *
+from .setting_metadata import *
 
 class DocumentLoader:
     def __init__(self, file_path: str, kind: str = "all"):

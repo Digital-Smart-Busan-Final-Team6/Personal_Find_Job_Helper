@@ -3,13 +3,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-from Env_Loader import EnvLoader
-from Document_Loader import DocumentLoader
-from Document_Splitter import DocumentSplitter
-from Embedding_DB import EmbeddingDB
-from Retiever_Builder import RetrieverBuilder
-from LLM_Factory import LLMFactory
-from Chain_Factory import ChainFactory
+from .Env_Loader import EnvLoader
+from .Document_Loader import DocumentLoader
+from .Document_Splitter import DocumentSplitter
+from .Embedding_DB import EmbeddingDB
+from .Retiever_Builder import RetrieverBuilder
+from .LLM_Factory import LLMFactory
+from .Chain_Factory import ChainFactory
 
 def main(return_chain_only: bool = False):
     # ① 환경 변수 로드 (로컬 우선)
@@ -22,7 +22,7 @@ def main(return_chain_only: bool = False):
         file_path      = BASE_DIR / os.getenv("DATA_PATH")
         chunk_size     = 1000
         overlap_size   = 50
-        device         = "mps"
+        device         = "cpu"
         persist_dir    = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
         retriever_mode = 1
         k              = 3
@@ -46,7 +46,7 @@ def main(return_chain_only: bool = False):
         chunk_size     = 1000
         overlap_size   = 50
         persist_dir    = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
-        device         = "mps"
+        device         = "cpu"
         retriever_mode = 1
         k              = 3
         engine_num     = 2
