@@ -2,7 +2,6 @@ import os
 import json
 from pathlib import Path
 from typing import List
-from langchain.schema import Document
 from langchain_community.document_loaders import DirectoryLoader
 from setting_metadata import *
 
@@ -31,7 +30,7 @@ class DocumentLoader:
         company_files = [f for f in json_files if "Company" in f]
 
         docs: List[Document] = []
-        # 예시: "Analysis" 파일이 있으면 분석용 Document 생성
+        # 예시: "Analysis" 파일이 있으면 분석 Document 생성
         if analysis_files:
             with open(self.file_path / analysis_files[0], encoding="utf-8") as f:
                 data_analysis = json.load(f)

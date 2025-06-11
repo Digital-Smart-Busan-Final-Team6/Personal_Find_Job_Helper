@@ -35,3 +35,5 @@ seaborn
 openai
 serpapi
 selenium
+langgraph
+datasets
