@@ -4,9 +4,10 @@
   {% csrf_token %}
   <meta charset="UTF-8">
   <title>Helper</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     html, body {
       margin: 0;
@@ -22,10 +23,14 @@
       width: 100%;
       height: 100%;
       z-index: -1;
-      background: linear-gradient(rgba(0, 0, 50, 0.6), rgba(0, 0, 30, 0.9));
+      background-color: #0a0f1a; /* 아주 어두운 블루 계열 배경 */
+      background-image:
+        linear-gradient(217deg, rgba(20, 30, 48, 0.6), rgba(0, 0, 0, 0) 70.71%),
+        linear-gradient(127deg, rgba(15, 20, 35, 0.4), rgba(0, 0, 0, 0) 70.71%),
+        linear-gradient(336deg, rgba(10, 10, 30, 0.4), rgba(0, 0, 0, 0) 70.71%);
       background-size: cover;
       background-position: center;
-    }
+}
 
     .top-right {
       position: absolute;
@@ -143,6 +148,31 @@
       align-self: flex-end;
       background: rgba(170, 170, 255, 0.2);
     }
+
+    .chatbox,
+    .message,
+    .chat-input input,
+    .chat-input button {
+      font-family: 'Inter', sans-serif;
+    }
+
+
+    .typing-cursor::after {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 1em;
+      background-color: #4B5563; /* Tailwind gray-600 느낌 */
+      margin-left: 4px;
+      animation: blink 1s step-start infinite;
+      vertical-align: bottom;
+      border-radius: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -226,11 +256,40 @@
     
     function appendMessage(message, sender) {
       const msgDiv = document.createElement("div");
-      msgDiv.classList.add("message");
-      msgDiv.classList.add(sender);
-      msgDiv.textContent = message;
+      msgDiv.classList.add("message", sender);
+      
+      if (sender === "bot") {
+        typeMessage(msgDiv, message);
+      } else {
+        msgDiv.textContent = message;
+      }
+
       chatbox.appendChild(msgDiv);
-      chatbox.scrollTop = chatbox.scrollHeight;  // 자동 스크롤 맨 아래로
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    //Typing Effect(GPT 처럼 한글자씩 나오게)
+    function typeMessage(element, markdownText, delay = 30) {
+      let index = 0;
+
+      const plainText = markdownText.replace(/(\*\*|__|~~|`|\[|\]\(.*?\)|#+|\n|>|\*|-|_|\d+\.)/g, ''); // 마크다운 제거용 단순치환 (선택적)
+
+      element.classList.add("typing-cursor");
+
+      function type() {
+        if (index < plainText.length) {
+          element.textContent = plainText.slice(0, index + 1);
+          chatbox.scrollTop = chatbox.scrollHeight;
+          index++;
+          setTimeout(type, delay);
+        } else {
+          // 타이핑 끝나면 마크다운 전체 렌더링
+          element.innerHTML = marked.parse(markdownText);
+          element.classList.remove("typing-cursor");
+        }
+      }
+
+      type();
     }
     
     // CSRF 토큰 가져오기 함수

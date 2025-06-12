@@ -40,7 +40,12 @@ INSTALLED_APPS = [
     'main',
     'accounts.apps.AccountsConfig',
     'widget_tweaks',
+    'crispy_forms',
+    'crispy_bootstrap5',  # 부트스트랩5 사용 시 추가
 ]
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

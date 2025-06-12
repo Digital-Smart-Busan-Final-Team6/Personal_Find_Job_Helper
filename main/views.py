@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -65,25 +65,23 @@ def register_view(request):
         form = RegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
 
-@login_required
 def mypage_view(request):
-    user = request.user
-    profile = user.profile  # UserProfile 객체
-
-    if request.method == 'POST':
-        form = ProfileUpdateForm(request.POST, instance=profile)
-        if form.is_valid():
-            form.save()
-            messages.success(request, '정보가 성공적으로 수정되었습니다.')
-            return redirect('mypage')
-    else:
-        form = ProfileUpdateForm(instance=profile)
-
-    return render(request, 'accounts/mypage.html', {
-        'form': form,
-        'username': user.username,
-        'email': user.email,
+    user_profile = get_object_or_404(UserProfile, user=request.user)
+    return render(request, 'mypage.html', {
+        'user_profile': user_profile
     })
+
+def mypage_education_view(request):
+    return render(request, 'mypage/education.html')
+
+def mypage_job_view(request):
+    return render(request, 'mypage/job.html')
+
+def mypage_location_view(request):
+    return render(request, 'mypage/location.html')
+
+def mypage_skills_view(request):
+    return render(request, 'mypage/skills.html')
 
 def logout_view(request):
     logout(request)

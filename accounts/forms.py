@@ -23,11 +23,4 @@ class RegisterForm(UserCreationForm):
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = UserProfile
-        fields = ['career', 'certifications', 'awards', 'activities', 'skills']
-        widgets = {
-            'career': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
-            'certifications': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
-            'awards': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
-            'activities': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
-            'skills': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
-        }
+        fields = ['education', 'job', 'location', 'skills']  # 새 필드명

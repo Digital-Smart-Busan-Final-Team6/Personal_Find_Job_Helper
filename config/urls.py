@@ -12,4 +12,8 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('mypage/', views.mypage_view, name='mypage'), 
     path('chat/', views.chat_api, name='chat_api'),
+    path('mypage/education/', views.mypage_education_view, name='mypage_education'),
+    path('mypage/job/', views.mypage_job_view, name='mypage_job'),
+    path('mypage/location/', views.mypage_location_view, name='mypage_location'),
+    path('mypage/skills/', views.mypage_skills_view, name='mypage_skills'),
 ]
