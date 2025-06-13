@@ -1,19 +1,16 @@
 # main_pipeline.py
-from langchain.agents import create_tool_calling_agent
-from langchain_teddynote.messages import AgentStreamParser
 
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
 from Agnet_Tools import *
-from Chain_Factory import ChainFactory
 from Document_Loader import DocumentLoader
 from Document_Splitter import DocumentSplitter
 from Embedding_DB import EmbeddingDB
 from Env_Loader import EnvLoader
 from LLM_Factory import LLMFactory
 from Retiever_Builder import RetrieverBuilder
-from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain_community.utilities.dalle_image_generator import DallEAPIWrapper
 
 
 def main(return_chain_only: bool = False):
@@ -78,10 +75,9 @@ def main(return_chain_only: bool = False):
 
     tools = AgentTools.get_tools(retriever=retriever, llm=llm)  # 도구 목록 생성 (retriever 포함)
 
-    agent = create_tool_calling_agent(llm, tools, ChainFactory.PROMPT)
+    agent = create_tool_calling_agent(llm, tools, AgentTools.PROMPT)
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
 
-    from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
 
     # 도구 호출 시 실행되는 콜백 함수입니다.
     def tool_callback(tool) -> None:

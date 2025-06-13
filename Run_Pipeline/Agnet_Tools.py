@@ -13,10 +13,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_community.utilities.dalle_image_generator import DallEAPIWrapper
 from langchain_community.agent_toolkits import FileManagementToolkit
-from langchain_community.agent_toolkits import FileManagementToolkit
+import json
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 class AgentTools:
     # ────────────────────── 공통 PROMPT 정의 ──────────────────────
@@ -27,6 +26,7 @@ class AgentTools:
         2) 문서에서 답을 찾지 못했을 때만 `search` 웹 검색 툴을 사용하세요.
         3) 채용 공고에 대한 분석을 요구 할 시 'job_dataframe_analysis' 툴을 사용하세요.
         4) 이미지 생성은 'generate_image' 툴을 사용하세요.
+        5) 이력서에 대한 질문은 'resume_qa' 툴을 사용하세요.
         답변은 한국어로 작성하세요.
         """
 
@@ -148,3 +148,32 @@ class AgentTools:
         ).get_tools()
 
         return file_tools
+
+    @staticmethod
+    def get_resume_tool(llm) -> Tool:
+        """
+        이력서를 LLM 컨텍스트에 넣어 질의-응답해 주는 툴.
+        """
+        data_path = BASE_DIR / "Data_Files" / "resume.json"
+        with open(data_path, encoding="utf-8") as f:
+            resume = json.load(f)
+
+        # ▶ 필요한 형태(평문)로 합치기
+        resume_text = "\n".join(f"{k}: {v}" for k, v in resume.items())
+
+        def _answer_about_resume(question: str) -> str:
+            prompt = f"""너는 구직자의 이력서 코치야.
+            이력서 원문:
+            ---
+            {resume_text}
+            ---
+            사용자의 질문: {question}
+            """
+
+            return llm.invoke(prompt).content  # LLM 응답 텍스트
+
+        return Tool.from_function(
+            func=_answer_about_resume,
+            name="resume_qa",
+            description="이력서 내용에 대해 질문하면, 조언이나 답변을 해 줍니다.",
+        )
