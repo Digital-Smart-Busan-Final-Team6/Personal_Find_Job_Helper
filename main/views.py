@@ -1,95 +1,60 @@
+# main/views.py
+
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.contrib import messages
-from dotenv import load_dotenv
-
-from Run_Pipeline.Main_Pipeline import main # Run_Pipeline 폴더에 Main_Pipeline와 연결
-
-from accounts.forms import LoginForm, RegisterForm, ProfileUpdateForm
-from accounts.models import UserProfile
-
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 
-from .chain import chain # chain.py에서 모듈화 해둔 chain
+from dotenv import load_dotenv
+from Run_Pipeline.Main_Pipeline import main
+
+from accounts.models import Resume
+from accounts.forms import ResumeForm
 
 load_dotenv()
-# 요청마다 다시 chain 만드는 건 비효율적이므로, 전역에 chain 한 번만 생성
-chain = main(return_chain_only=True)
+
+#  1. 체인을 전역 변수로 선언만 해두고, 초기값은 None으로 설정합니다.
+chain = None
 
 def home(request):
     return render(request, 'home.html')
 
-def home_view(request):
-    answer = None
-    if request.method == "POST":
-        user_question = request.POST.get("question", "")
-
-        # 백엔드 구분: HF-Pipeline(3)은 context 포함 필요함
-        # 여기선 backend_num == 2 로 고정돼있으니 RetrievalQA 체인
-        try:
-            result = chain.invoke({"question": user_question})
-            answer = result if isinstance(result, str) else str(result)
-        except Exception as e:
-            answer = f"에러 발생: {e}"
-
-    return render(request, "accounts/home.html", {"answer": answer})
-
-def login_view(request):
-    if request.method == 'POST':
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            username = form.cleaned_data['username']
-            password = form.cleaned_data['password']
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                login(request, user)
-                return redirect('home')
-            else:
-                messages.error(request, '아이디나 비밀번호가 올바르지 않습니다.')
-    else:
-        form = LoginForm()
-    return render(request, 'accounts/login.html', {'form': form})
-
-def register_view(request):
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()  # RegisterForm이 User + UserProfile 생성
-            messages.success(request, '회원가입이 완료되었습니다.')
-            return redirect('login')
-    else:
-        form = RegisterForm()
-    return render(request, 'accounts/register.html', {'form': form})
-
 def mypage_view(request):
-    user_profile = get_object_or_404(UserProfile, user=request.user)
-    return render(request, 'mypage.html', {
-        'user_profile': user_profile
-    })
+    resume, created = Resume.objects.get_or_create(pk=1, defaults={'title': '내 기본 이력서'})
 
-def mypage_education_view(request):
-    return render(request, 'mypage/education.html')
+    if request.method == 'POST':
+        post_data = request.POST.copy()
+        post_data['job'] = ','.join(request.POST.getlist('job'))
+        post_data['location'] = ','.join(request.POST.getlist('location'))
+        form = ResumeForm(post_data, instance=resume)
+        if form.is_valid():
+            form.save()
+            return redirect('mypage')
+    else:
+        form = ResumeForm(instance=resume)
 
-def mypage_job_view(request):
-    return render(request, 'mypage/job.html')
+    selected_jobs = resume.job.split(',') if resume.job else []
+    selected_locations = resume.location.split(',') if resume.location else []
 
-def mypage_location_view(request):
-    return render(request, 'mypage/location.html')
-
-def mypage_skills_view(request):
-    return render(request, 'mypage/skills.html')
-
-def logout_view(request):
-    logout(request)
-    messages.success(request, '로그아웃되었습니다.')
-    return redirect('home')
+    context = {
+        'form': form,
+        'resume': resume,
+        'selected_jobs': selected_jobs,
+        'selected_locations': selected_locations,
+    }
+    return render(request, 'mypage.html', context)
 
 @csrf_exempt
 def chat_api(request):
+    #  2. 전역 변수 chain을 사용하겠다고 선언합니다.
+    global chain
+    
+    #  3. chain이 아직 생성되지 않았다면 (최초 요청이라면) 그 때 생성합니다.
+    if chain is None:
+        print("Initializing LangChain chain for the first time...")
+        chain = main(return_chain_only=True)
+        print("Chain initialized.")
+
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -97,7 +62,7 @@ def chat_api(request):
             if not user_input:
                 return JsonResponse({'response': '질문을 입력해주세요.'})
             
-            # LangChain 처리
+            # 이제 안전하게 chain을 호출할 수 있습니다.
             result = chain.invoke(user_input)
             return JsonResponse({'response': result})
         except Exception as e:
