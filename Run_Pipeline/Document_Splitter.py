@@ -40,6 +40,7 @@ class DocumentSplitter:
             chunk_overlap=self.overlap,
             length_function=self._len_okt
         )
+
         all_chunks: List[Document] = []
         for doc in tqdm(docs, desc="문서 분할 중", unit="doc"):
             chunks = splitter.split_documents([doc])

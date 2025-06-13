@@ -51,7 +51,12 @@ class LLMFactory:
 
         # OpenAI / Ollama / HF-Pipeline 분기
         if backend == 1:
-            return ChatOpenAI(model=model_name, temperature=0, streaming=True, callbacks=[StreamingStdOutCallbackHandler()])
+            return ChatOpenAI(
+                model=model_name,
+                temperature=0,
+                streaming=True,
+                callbacks=[StreamingStdOutCallbackHandler()],
+            )
         elif backend == 2:
             return ChatOllama(model=model_name, temperature=0, streaming=True, callbacks=[StreamingStdOutCallbackHandler()])
         elif backend == 3:
