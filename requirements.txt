@@ -37,3 +37,6 @@ serpapi
 selenium
 langgraph
 datasets
+kagglehub
+langchain_experimental
+tabulate

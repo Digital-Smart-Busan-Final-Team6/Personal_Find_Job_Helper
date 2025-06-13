@@ -3,8 +3,8 @@ from typing import List
 from tqdm.auto import tqdm
 from langchain.schema import Document
 from langchain_community.retrievers import BM25Retriever
-from langchain_community.retrievers import BM25Retriever
 from typing import Any
+
 class RetrieverBuilder:
     def __init__(self, db, docs: List[Document], k: int = 3, mode: int = 1):
         """
@@ -39,6 +39,7 @@ class RetrieverBuilder:
         if self.mode == 2:
             return bm_retriever
         if self.mode == 3:
+            from langchain.retrievers import EnsembleRetriever
             return EnsembleRetriever(retrievers=[vec_retriever, bm_retriever], weights=[0.5, 0.5])
 
         raise ValueError("mode는 1, 2, 또는 3이어야 합니다.")

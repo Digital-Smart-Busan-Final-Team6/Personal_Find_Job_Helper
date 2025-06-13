@@ -1,21 +1,19 @@
 # main_pipeline.py
-import os
-from pathlib import Path
-from Env_Loader import EnvLoader
+from langchain.agents import create_tool_calling_agent
+from langchain_teddynote.messages import AgentStreamParser
+
+from Agnet_Tools import *
+from Chain_Factory import ChainFactory
 from Document_Loader import DocumentLoader
 from Document_Splitter import DocumentSplitter
 from Embedding_DB import EmbeddingDB
-from Retiever_Builder import RetrieverBuilder
+from Env_Loader import EnvLoader
 from LLM_Factory import LLMFactory
-from Chain_Factory import ChainFactory
-from langchain.agents import Tool, initialize_agent, AgentType, create_tool_calling_agent, AgentExecutor
-from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain.tools.retriever import create_retriever_tool
-from langchain_teddynote.messages import AgentStreamParser
-from langchain.agents import AgentExecutor
-from langchain.agents import create_tool_calling_agent
+from Retiever_Builder import RetrieverBuilder
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_community.utilities.dalle_image_generator import DallEAPIWrapper
 
 
 def main(return_chain_only: bool = False):
@@ -58,13 +56,9 @@ def main(return_chain_only: bool = False):
         k = 3
         engine_num = 1
         backend_num = 1
-
-    # TavilySearchResults 클래스의 인스턴스를 생성합니다
-    # k=6은 검색 결과를 6개까지 가져오겠다는 의미입니다
-
     # ③ 문서 로드
     loader = DocumentLoader(file_path, kind)  # 일반 파일들을 Document형태로 변환해서 다 불러옴
-    docs = loader.load()
+    docs = loader._load_json_files()
 
     # ④ 문서 분할
     splitter = DocumentSplitter(chunk_size=chunk_size, overlap=overlap_size)  # 이미 분할된 문서가 있다면 로드하고 아니면 새로 스플릿함
@@ -75,40 +69,50 @@ def main(return_chain_only: bool = False):
                            persist_dir=persist_dir)  # 이미 임베딩된 DB가 있다면 로드하고 아니면 새로 임베딩함
     db = embed_db.get_or_create_db(chunks)
 
+    # ⑦ LLM 로드
+    llm = LLMFactory.load_llm(engine=engine_num, backend=backend_num, device=device)  # LLM 로드
+
     # ⑥ 리트리버 빌드
     retriever_builder = RetrieverBuilder(db=db, docs=chunks, k=k, mode=retriever_mode)  # 리트리버 빌더 생성
     retriever = retriever_builder.build()
 
-    # ⑦ LLM 로드
-    llm = LLMFactory.load_llm(engine=engine_num, backend=backend_num, device=device)  # LLM 로드
+    tools = AgentTools.get_tools(retriever=retriever, llm=llm)  # 도구 목록 생성 (retriever 포함)
 
-    # ⑧ 체인 생성
-    if backend_num == 3:  # HF-Pipeline (PEFT) 모드
-        chain = ChainFactory.build_peft_chain(retriever=retriever, llm=llm)
-    else:
-        chain = ChainFactory.build_chain(retriever=retriever, llm=llm)
+    agent = create_tool_calling_agent(llm, tools, ChainFactory.PROMPT)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
 
-    retriever_tool = create_retriever_tool(
-        retriever=retriever,
-        name="document_search_response",
-        description="문서에서 관련 내용을 찾아 질문에 답변합니다."
+    from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
+
+    # 도구 호출 시 실행되는 콜백 함수입니다.
+    def tool_callback(tool) -> None:
+        print("<<<<<<< 도구 호출 >>>>>>")
+        print(f"Tool: {tool.get('tool')}")  # 사용된 도구의 이름을 출력합니다.
+        print("<<<<<<< 도구 호출 >>>>>>")
+
+    # 관찰 결과를 출력하는 콜백 함수입니다.
+    def observation_callback(observation) -> None:
+        print("<<<<<<< 관찰 내용 >>>>>>")
+        print(
+            f"Observation: {observation.get('observation')[0]}"
+        )  # 관찰 내용을 출력합니다.
+        print("<<<<<<< 관찰 내용 >>>>>>")
+
+    # 최종 결과를 출력하는 콜백 함수입니다.
+    def result_callback(result: str) -> None:
+        print("<<<<<<< 최종 답변 >>>>>>")
+        print(result)  # 최종 답변을 출력합니다.
+        print("<<<<<<< 최종 답변 >>>>>>")
+
+    # AgentCallbacks 객체를 생성하여 각 단계별 콜백 함수를 설정합니다.
+    agent_callbacks = AgentCallbacks(
+        tool_callback=tool_callback,
+        observation_callback=observation_callback,
+        result_callback=result_callback,
     )
 
-    search = TavilySearchResults(
-        k=6,
-        name="search",
-    )
+    # AgentStreamParser 객체를 생성하여 에이전트의 실행 과정을 파싱합니다.
+    agent_stream_parser = AgentStreamParser(agent_callbacks)
 
-    tools = [retriever_tool, search]
-
-    agent = create_tool_calling_agent(
-        llm, tools, ChainFactory.PROMPT
-    )
-
-    agent_executor = AgentExecutor(agent=agent,
-                                   tools=tools,
-                                   verbose=False)
-    agent_stream_parser = AgentStreamParser()
 
     store = {}
 
@@ -144,7 +148,6 @@ def main(return_chain_only: bool = False):
         for step in result:
             agent_stream_parser.process_agent_steps(step)
         print()  # 다음 질문을 위해 줄바꿈
-
 
 if __name__ == "__main__":
     main()
