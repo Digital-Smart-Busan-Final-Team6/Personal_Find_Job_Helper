@@ -20,6 +20,7 @@ class Resume(models.Model):
     skills = models.TextField('보유 기술', blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True) # 수정일자 필드
 
     def __str__(self):
         return f"{self.title} (ID: {self.id})"
