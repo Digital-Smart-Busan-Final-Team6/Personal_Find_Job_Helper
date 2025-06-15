@@ -4,13 +4,13 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
-from Agnet_Tools import *
-from Document_Loader import DocumentLoader
-from Document_Splitter import DocumentSplitter
-from Embedding_DB import EmbeddingDB
-from Env_Loader import EnvLoader
-from LLM_Factory import LLMFactory
-from Retiever_Builder import RetrieverBuilder
+from .Agnet_Tools import *
+from .Document_Loader import DocumentLoader
+from .Document_Splitter import DocumentSplitter
+from .Embedding_DB import EmbeddingDB
+from .Env_Loader import EnvLoader
+from .LLM_Factory import LLMFactory
+from .Retiever_Builder import RetrieverBuilder
 
 
 def main(return_chain_only: bool = False):
@@ -24,7 +24,8 @@ def main(return_chain_only: bool = False):
         file_path = BASE_DIR / os.getenv("DATA_PATH")
         chunk_size = 1000
         overlap_size = 50
-        device = "mps"
+        # device = "mps"
+        device = "cpu"
         persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
         retriever_mode = 1
         k = 3
@@ -48,7 +49,8 @@ def main(return_chain_only: bool = False):
         chunk_size = 1000
         overlap_size = 50
         persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
-        device = "mps"
+        # device = "mps"
+        device = "cpu"
         retriever_mode = 1
         k = 3
         engine_num = 1
@@ -127,6 +129,9 @@ def main(return_chain_only: bool = False):
         # 프롬프트의 메시지가 입력되는 key: "chat_history"
         history_messages_key="chat_history",
     )
+
+    if return_chain_only:
+        return agent_with_chat_history
 
     # ─── 여기에 while 루프 추가 ───
     print("질문을 입력하세요. 종료하려면 'exit'를 입력하세요.")

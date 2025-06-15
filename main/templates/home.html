@@ -1,0 +1,206 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  {% csrf_token %}
+  <meta charset="UTF-8">
+  <title>Helper</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* CSS는 변경 사항 없습니다. 기존 스타일 그대로 사용합니다. */
+    html, body { margin: 0; padding: 0; height: 100%; font-family: 'Orbitron', sans-serif; color: white; }
+    #particles-js { position: fixed; width: 100%; height: 100%; z-index: -1; background-color: #0a0f1a; background-image: linear-gradient(217deg, rgba(20, 30, 48, 0.6), rgba(0, 0, 0, 0) 70.71%), linear-gradient(127deg, rgba(15, 20, 35, 0.4), rgba(0, 0, 0, 0) 70.71%), linear-gradient(336deg, rgba(10, 10, 30, 0.4), rgba(0, 0, 0, 0) 70.71%); background-size: cover; background-position: center; }
+    .container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+    .title { font-size: 5rem; letter-spacing: 0.1em; opacity: 0; margin-bottom: 40px; }
+    .chat-input { display: flex; align-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 30px; padding: 12px 20px; width: 60%; max-width: 600px; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.3); }
+    .chat-input input { flex: 1; padding: 10px; border: none; outline: none; background: transparent; color: white; font-size: 1.2rem; }
+    .chat-input button { background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer; transition: color 0.3s; }
+    .chat-input button:hover { color: #aaaaff; }
+    .chatbox { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 800px; max-height: 60vh; overflow-y: auto; padding: 20px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: none; flex-direction: column; gap: 10px; }
+    .message { max-width: 70%; padding: 12px 18px; border-radius: 20px; word-break: break-word; line-height: 1.4; text-align: left; }
+    .user { align-self: flex-end; background: rgba(255, 255, 255, 0.1); }
+    .bot { align-self: flex-start; background: rgba(170, 170, 255, 0.2); }
+    .chatbox, .message, .chat-input input, .chat-input button { font-family: 'Inter', sans-serif; }
+    .typing-cursor::after { content: ''; display: inline-block; width: 8px; height: 1em; background-color: #4B5563; margin-left: 4px; animation: blink 1s step-start infinite; vertical-align: bottom; border-radius: 2px; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  </style>
+</head>
+<body class="home-page">
+  {% include '_sidebar.html' %}
+
+  <div id="particles-js"></div>
+
+  <div class="container" id="home-container">
+    <div class="title" id="helper-title">Helper</div>
+    <div class="chat-input">
+      <input type="text" id="home-input" placeholder="무엇을 도와드릴까요?" />
+      <button id="start-chat">➤</button>
+    </div>
+  </div>
+  
+  <div class="chatbox" id="chatbox"></div>
+  <div class="chat-input" id="chat-input-container" style="display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 60%; max-width: 600px;">
+    <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+    <button id="send-btn">➤</button>
+  </div>
+
+  <script>
+    // --- 기존 UI/애니메이션 관련 스크립트는 그대로 둡니다. ---
+    const title = document.getElementById('helper-title');
+    gsap.to(title, { opacity: 1, duration: 1.5, delay: 0.5 });
+    
+    // --- 필요한 모든 DOM 요소를 미리 가져옵니다. ---
+    const homeInput = document.getElementById("home-input");
+    const startChatBtn = document.getElementById("start-chat");
+    const chatInput = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("send-btn");
+    const chatbox = document.getElementById("chatbox");
+    const homeContainer = document.getElementById("home-container");
+    const chatInputContainer = document.getElementById("chat-input-container");
+
+    // --- CSRF 토큰을 가져오는 함수 (Django 필수) ---
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    // --- 메시지를 화면에 추가하는 헬퍼 함수 ---
+    function appendMessage(text, sender) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message", sender);
+      msgDiv.innerText = text; // 초기 텍스트 설정
+      chatbox.appendChild(msgDiv);
+      chatbox.scrollTop = chatbox.scrollHeight; // 자동 스크롤
+      return msgDiv; // 나중에 내용을 업데이트하기 위해 div 요소를 반환
+    }
+
+    // --- ✨ 핵심 ✨: 스트리밍 API를 호출하고 처리하는 새로운 sendMessage 함수 ---
+    async function sendMessage(message) {
+      if (!message.trim()) return;
+
+      // 1. 사용자 메시지를 화면에 즉시 표시
+      appendMessage(message, "user");
+      chatInput.value = ""; // 입력창 비우기
+
+      // 2. 봇이 응답하는 동안 입력창 비활성화
+      chatInput.disabled = true;
+      sendBtn.disabled = true;
+
+      // 3. 봇의 답변이 표시될 빈 공간과 타이핑 커서를 먼저 생성
+      const botMessageDiv = appendMessage("", "bot");
+      botMessageDiv.classList.add("typing-cursor");
+
+      try {
+        // 4. '/chat_api' 엔드포인트로 스트리밍 요청 전송
+        const response = await fetch('/chat_api', { // API URL 확인!
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ message: message })
+        });
+
+        if (!response.ok) {
+          throw new Error(`서버 오류: ${response.status}`);
+        }
+
+        // 5. 스트림 데이터를 실시간으로 읽고 처리
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break; // 스트림이 끝나면 루프 종료
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonData = JSON.parse(line.substring(6));
+                if (jsonData.token) {
+                  fullResponse += jsonData.token;
+                  // innerText를 사용해 실시간으로 텍스트를 업데이트 (타이핑 효과)
+                  botMessageDiv.innerText = fullResponse;
+                  chatbox.scrollTop = chatbox.scrollHeight; // 새 메시지가 보일 때마다 스크롤
+                }
+                if (jsonData.error) {
+                   botMessageDiv.innerText = '오류: ' + jsonData.error;
+                }
+              } catch (e) {
+                // JSON 파싱 오류는 무시 (빈 줄 등)
+              }
+            }
+          }
+        }
+        
+        // 6. 스트림이 모두 끝나면, 최종 텍스트를 Markdown으로 렌더링
+        botMessageDiv.innerHTML = marked.parse(fullResponse);
+
+      } catch (error) {
+        botMessageDiv.innerText = '죄송합니다, 답변을 생성하는 중 오류가 발생했습니다.';
+        console.error("Error sending message:", error);
+      } finally {
+        // 7. 응답이 끝나면(성공/실패 무관) 입력창을 다시 활성화
+        botMessageDiv.classList.remove("typing-cursor");
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        chatInput.focus(); // 사용자가 바로 다음 질문을 입력할 수 있도록 포커스
+      }
+    }
+
+    // --- 이벤트 리스너 설정 ---
+    startChatBtn.addEventListener("click", () => {
+      const message = homeInput.value;
+      if (!message.trim()) return;
+      // 애니메이션과 함께 채팅창으로 전환
+      gsap.to(homeContainer, { y: "-50%", opacity: 0, duration: 0.7, onComplete: () => {
+        homeContainer.style.display = "none";
+        chatbox.style.display = "flex";
+        chatInputContainer.style.display = "flex";
+        sendMessage(message); // 첫 메시지 전송
+      }});
+    });
+
+    homeInput.addEventListener("keypress", e => {
+      if (e.key === "Enter") startChatBtn.click();
+    });
+
+    sendBtn.addEventListener("click", () => {
+      sendMessage(chatInput.value);
+    });
+
+    chatInput.addEventListener("keypress", e => {
+      if (e.key === "Enter") {
+        sendMessage(chatInput.value);
+      }
+    });
+  </script>
+
+  <script>
+    // particles.js 스크립트는 변경 없이 그대로 둡니다.
+    particlesJS("particles-js", {
+      particles: { number: { value: 120 }, color: { value: "#ffffff" }, shape: { type: "circle" }, opacity: { value: 0.6, random: true }, size: { value: 2, random: true }, move: { enable: true, speed: 0.35, direction: "none", random: true, out_mode: "out" }, line_linked: { enable: false } },
+      interactivity: { events: { onhover: { enable: false }, onclick: { enable: false } } },
+      retina_detect: true
+    });    
+  </script>
+</body>
+</html>

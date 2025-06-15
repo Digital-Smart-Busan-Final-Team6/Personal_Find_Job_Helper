@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login - Helper</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <style>
+    
+    .zoom-wrapper {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1.25);  /* 중심이 화면 중앙 + 125% 확대 */
+      transform-origin: center center;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Orbitron', sans-serif;
+      color: white;
+      overflow: hidden;
+      background: linear-gradient(rgba(0, 0, 50, 0.6), rgba(0, 0, 30, 0.9));
+    }
+
+    #particles-js {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+
+    .glass-card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 40px 60px;
+      backdrop-filter: blur(15px);
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.3);
+      width: 360px;
+      text-align: center;
+    }
+
+    .container {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .form-label {
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: block;
+      text-align: left;
+    }
+
+    .form-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      border: none;
+      border-radius: 12px;
+      outline: none;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.25);
+      color: white;
+    }
+
+
+    .form-input::placeholder {
+      color: #ccc;
+    }
+
+    button {
+      width: 80%;
+      padding: 12px 0;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 24px; 
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #5a67d8, #6b46c1);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    }
+
+    a {
+      color: #aaaaff;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div id="particles-js"></div>
+
+  <!-- ✅ 확대 적용할 전체 콘텐츠를 래핑할 div 추가 -->
+  <div class="zoom-wrapper">
+    <div class="container">
+      <div class="glass-card">
+        <h2 style="text-align: center; margin-bottom: 40px;">Login to Helper</h2>
+        <form method="POST" action="" onsubmit="showSpinner()">
+          {% csrf_token %}
+
+          <label class="form-label" for="username">ID</label>
+          <input type="text" name="username" id="username" class="form-input" required />
+
+          <label class="form-label" for="password">PW</label>
+          <input type="password" name="password" id="password" class="form-input" required />
+
+          <button type="submit" id="login-button">
+            <span class="spinner" id="spinner"></span>
+            Sign In
+          </button>
+        </form>
+
+        <a href="{% url 'register' %}">계정이 없으신가요? 회원가입</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    particlesJS("particles-js", {
+      particles: {
+        number: {
+          value: 140,
+          density: { enable: true, value_area: 1000 }
+        },
+        color: { value: "#ffffff" },
+        shape: { type: "circle" },
+        opacity: {
+          value: 0.6,
+          random: true,
+          anim: {
+            enable: true,
+            speed: 0.7,
+            opacity_min: 0.1,
+            sync: false
+          }
+        },
+        size: {
+          value: 4,
+          random: true
+        },
+        move: {
+          enable: true,
+          speed: 0.7,
+          direction: "none",
+          random: true,
+          straight: false,
+          out_mode: "out"
+        },
+        line_linked: {
+          enable: false
+        }
+      },
+      interactivity: {
+        events: {
+          onhover: { enable: false },
+          onclick: { enable: false }
+        }
+      },
+      retina_detect: true
+    });
+  </script>
+</body>
+</html>
