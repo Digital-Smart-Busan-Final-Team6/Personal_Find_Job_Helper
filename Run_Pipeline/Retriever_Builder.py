@@ -1,5 +1,9 @@
 # retriever_builder.py
 from typing import List
+
+from langchain.retrievers import ParentDocumentRetriever
+from langchain_community.docstore import InMemoryDocstore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from tqdm.auto import tqdm
 from langchain.schema import Document
 from langchain_community.retrievers import BM25Retriever
@@ -21,6 +25,7 @@ class RetrieverBuilder:
     def build(self) -> Any:
         # 1) 벡터 리트리버
         vec_retriever = self.db.as_retriever(search_kwargs={"k": self.k})
+
 
         # 2) BM25 리트리버 (모드 2 또는 3일 때만)
         bm_retriever = None

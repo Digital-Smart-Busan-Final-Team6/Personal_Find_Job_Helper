@@ -58,8 +58,6 @@ class DocumentLoader:
                     # 나머지 필드는 key: value 형태로 page_content 생성
                     lines = []
                     for k, v in company.items():
-                        if k == "회사명":
-                            continue
                         if isinstance(v, list):
                             joined = "\n".join(v)
                         else:
