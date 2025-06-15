@@ -34,7 +34,7 @@ class ResumeForm(forms.ModelForm):
                 ('', '선택'), ('중졸', '중졸'), ('고졸', '고졸'), ('학사', '학사'), ('석사', '석사'), ('박사', '박사')
             ]),
             'gpa': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 4.2'}),
-            'graduation_status': forms.Select(attrs={'class': 'form-select'}, choices=[
+            'graduation_status': forms.Select(attrs={'clawss': 'form-select'}, choices=[
                 ('', '선택'), ('졸업', '졸업'), ('졸업예정자', '졸업예정자')
             ]),
              'skills': forms.Textarea(attrs={

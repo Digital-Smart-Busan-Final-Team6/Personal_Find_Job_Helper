@@ -1,19 +1,21 @@
 # main/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 
-from dotenv import load_dotenv
-from Run_Pipeline.Main_Pipeline import main
+# from dotenv import load_dotenv
+# from Run_Pipeline.Main_Pipeline import main
 
 from accounts.models import Resume
 from accounts.forms import ResumeForm
 
-load_dotenv()
+from Run_Pipeline.Agent_Factory import get_agent_chain
+from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
 
-chain = None
+# load_dotenv()
+# chain = None
 
 # --- [View 1] 챗봇이 있는 메인 페이지 ---
 def home(request):
@@ -143,23 +145,61 @@ def export_resumes_to_json(request):
 @csrf_exempt
 def chat_api(request):
     """
-    챗봇의 질문에 대한 응답을 처리하는 API입니다.
+    챗봇의 질문에 대한 응답을 실시간 스트리밍으로 처리하는 API입니다.
     """
-    global chain
-    
-    if chain is None:
-        print("Initializing LangChain chain for the first time...")
-        chain = main(return_chain_only=True)
-        print("Chain initialized.")
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST 요청만 허용됩니다.'}, status=405)
 
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            user_input = data.get('message', '').strip()
-            if not user_input:
-                return JsonResponse({'response': '질문을 입력해주세요.'})
+    try:
+        data = json.loads(request.body)
+        message = data.get('message', '').strip()
+
+        if not request.session.session_key:
+            request.session.create()
+        session_id = request.session.session_key
+
+        if not message:
+            return StreamingHttpResponse("data: {\"error\": \"질문을 입력해주세요.\"}\n\n", content_type="text/event-stream")
+
+        agent = get_agent_chain()
+
+        # 스트리밍 응답을 위한 제너레이터 함수를 정의합니다.
+        def stream_response_generator():
+            # 이 리스트는 콜백 함수가 토큰을 담아두는 임시 저장소 역할을 합니다.
+            tokens_to_yield = []
             
-            result = chain.invoke(user_input)
-            return JsonResponse({'response': result})
-        except Exception as e:
-            return JsonResponse({'response': f'에러 발생: {str(e)}'})
+            # 콜백 함수 정의: Agent가 생성하는 최종 답변(result)을 리스트에 추가합니다.
+            def result_callback(result: str):
+                tokens_to_yield.append(result)
+
+            # AgentStreamParser를 팀원분의 의도대로 콜백과 함께 생성합니다.
+            parser = AgentStreamParser(
+                callbacks=AgentCallbacks(result_callback=result_callback)
+            )
+
+            # Agent의 stream 메서드를 호출합니다.
+            result_stream = agent.stream(
+                {"input": message},
+                config={"configurable": {"session_id": session_id}}
+            )
+            
+            # 스트림에서 나오는 각 '조각(chunk)'을 처리합니다.
+            for chunk in result_stream:
+                # 파서의 process_agent_steps가 내부적으로 콜백을 호출합니다.
+                parser.process_agent_steps(chunk)
+                
+                # 콜백 함수가 리스트에 담아둔 토큰이 있다면, 즉시 yield로 보냅니다.
+                while tokens_to_yield:
+                    token = tokens_to_yield.pop(0)
+                    yield f"data: {json.dumps({'token': token})}\n\n"
+        
+        response = StreamingHttpResponse(stream_response_generator(), content_type="text/event-stream")
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': '잘못된 JSON 형식입니다.'}, status=400)
+    except Exception as e:
+        print(f"챗봇 API 오류 발생: {e}")
+        error_message = json.dumps({'error': f'서버 오류가 발생했습니다: {str(e)}'})
+        return StreamingHttpResponse(f"data: {error_message}\n\n", content_type="text/event-stream", status=500)

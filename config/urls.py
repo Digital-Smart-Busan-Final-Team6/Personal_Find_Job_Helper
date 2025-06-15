@@ -11,7 +11,7 @@ urlpatterns = [
     path('', views.home, name='home'),
     
     # 3. 챗봇 API 엔드포인트
-    path('chat/', views.chat_api, name='chat_api'),
+    path('chat_api', views.chat_api, name='chat_api'),
 
     # --- 이력서 관련 URL 패턴들 ---
 
@@ -32,4 +32,6 @@ urlpatterns = [
     
     # 8. 모든 이력서를 JSON으로 내보내는 URL
     path('resumes/export/json/', views.export_resumes_to_json, name='export_resumes_json'),
+
+    path('export-resumes-to-json/', views.export_resumes_to_json, name='export_resumes_to_json'),
 ]
