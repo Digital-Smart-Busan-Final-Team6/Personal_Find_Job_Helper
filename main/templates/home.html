@@ -51,7 +51,36 @@
   <script>
     // --- 기존 UI/애니메이션 관련 스크립트는 그대로 둡니다. ---
     const title = document.getElementById('helper-title');
-    gsap.to(title, { opacity: 1, duration: 1.5, delay: 0.5 });
+    const text = "Helper";
+    let revealed = Array(text.length).fill(false); // 각 글자가 나타났는지 여부를 추적
+
+    // ★★★ 1. 랜덤으로 글자를 나타내는 함수 (복원) ★★★
+    function showRandomChar() {
+      // 아직 나타나지 않은 글자들의 인덱스를 찾습니다.
+      const hiddenIndices = revealed.map((v, i) => !v ? i : -1).filter(i => i !== -1);
+      
+      // 모든 글자가 나타났으면 함수를 종료합니다.
+      if (hiddenIndices.length === 0) return;
+      
+      // 숨겨진 글자 중 하나를 랜덤으로 선택합니다.
+      const randomIndex = hiddenIndices[Math.floor(Math.random() * hiddenIndices.length)];
+      revealed[randomIndex] = true; // 선택된 글자를 '나타남'으로 표시
+      
+      // 현재까지 나타난 글자와 숨겨진 글자(_)를 조합하여 제목을 업데이트합니다.
+      title.textContent = text.split('').map((char, index) => revealed[index] ? char : '_' ).join('');
+      
+      // 약간의 딜레이를 두고 다음 글자를 나타내기 위해 함수를 다시 호출합니다.
+      setTimeout(showRandomChar, 100);
+    }
+
+    // ★★★ 2. GSAP 애니메이션과 함께 실행되도록 수정 ★★★
+    // 페이지 로드 후 0.5초 뒤에 애니메이션 시작
+    setTimeout(() => {
+        // GSAP으로 제목을 서서히 나타나게 합니다.
+        gsap.to(title, { opacity: 1, duration: 1.5 });
+        // 동시에 랜덤 글자 나타내기 애니메이션을 시작합니다.
+        showRandomChar();
+    }, 500);
     
     // --- 필요한 모든 DOM 요소를 미리 가져옵니다. ---
     const homeInput = document.getElementById("home-input");
