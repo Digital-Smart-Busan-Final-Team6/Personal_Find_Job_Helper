@@ -1,27 +1,21 @@
 # main/views.py
 
+import time  # Agent 호출 시뮬레이션을 위한 time 모듈
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
-import json
-
-# from dotenv import load_dotenv
-# from Run_Pipeline.Main_Pipeline import main
 
 from accounts.models import Resume
 from accounts.forms import ResumeForm
 
-from Run_Pipeline.Agent_Factory import get_agent_chain
-from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
+# Agent 관련 import (실제 구현 시 주석 해제)
+# from Run_Pipeline.Agent_Factory import get_agent_chain
+# from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
 
-# load_dotenv()
-# chain = None
 
 # --- [View 1] 챗봇이 있는 메인 페이지 ---
 def home(request):
-    """
-    프로젝트의 메인 페이지로, 챗봇 기능을 담당합니다.
-    """
     context = {
         'current_page': 'home',
         'switch_url_name': 'resume_list',
@@ -31,9 +25,6 @@ def home(request):
 
 # --- [View 2] 이력서 '목록'을 보여주는 페이지 (Read) ---
 def resume_list_view(request):
-    """
-    데이터베이스에 저장된 모든 이력서를 가져와 목록 페이지에 보여줍니다.
-    """
     resumes = Resume.objects.all().order_by('-updated_at')
     context = {
         'resumes': resumes,
@@ -45,9 +36,6 @@ def resume_list_view(request):
 
 # --- [View 3] 새 이력서를 '추가'하는 페이지 (Create) ---
 def resume_add_view(request):
-    """
-    새로운 이력서를 작성하고 저장하는 폼 페이지입니다.
-    """
     if request.method == 'POST':
         form = ResumeForm(request.POST)
         job_list = request.POST.getlist('job')
@@ -73,11 +61,7 @@ def resume_add_view(request):
 
 # --- [View 4] 특정 이력서를 '수정'하는 페이지 (Update) ---
 def resume_edit_view(request, resume_id):
-    """
-    기존에 작성된 특정 이력서의 내용을 수정하는 폼 페이지입니다.
-    """
     resume = get_object_or_404(Resume, id=resume_id)
-
     if request.method == 'POST':
         form = ResumeForm(request.POST, instance=resume)
         job_list = request.POST.getlist('job')
@@ -104,22 +88,15 @@ def resume_edit_view(request, resume_id):
 
 # --- [View 5] 특정 이력서를 '삭제'하는 기능 (Delete) ---
 def resume_delete_view(request, resume_id):
-    """
-    특정 이력서를 데이터베이스에서 삭제하는 기능을 담당합니다.
-    """
     resume = get_object_or_404(Resume, id=resume_id)
     if request.method == 'POST':
         resume.delete()
         return redirect('resume_list')
-    
     return redirect('resume_list')
 
 
 # --- [View 6] 모든 이력서를 JSON 파일로 내보내는 기능 ---
 def export_resumes_to_json(request):
-    """
-    데이터베이스에 있는 모든 이력서 정보를 가져와 JSON 형식으로 응답합니다.
-    """
     resumes = Resume.objects.all()
     data_list = []
     for resume in resumes:
@@ -141,7 +118,25 @@ def export_resumes_to_json(request):
     return JsonResponse(data_list, safe=False, json_dumps_params={'ensure_ascii': False, 'indent': 2})
 
 
-# --- [View 7] 챗봇 API 엔드포인트 ---
+# --- [View 7] 공고 검색 리포트 페이지 ---
+def job_search_report_page(request):
+    resume_ids_str = request.GET.get('resumes', '')
+    if not resume_ids_str:
+        return redirect('resume_list')
+
+    resume_ids = resume_ids_str.split(',')
+    selected_resumes = Resume.objects.filter(id__in=resume_ids)
+
+    context = {
+        'selected_resumes': selected_resumes,
+        'resume_ids_str': resume_ids_str,
+        'current_page': 'resume',
+        'switch_url_name': 'home',
+    }
+    return render(request, 'job_search_report.html', context)
+
+
+# --- [View 8] 챗봇 API 엔드포인트 ---
 @csrf_exempt
 def chat_api(request):
     """
@@ -203,3 +198,80 @@ def chat_api(request):
         print(f"챗봇 API 오류 발생: {e}")
         error_message = json.dumps({'error': f'서버 오류가 발생했습니다: {str(e)}'})
         return StreamingHttpResponse(f"data: {error_message}\n\n", content_type="text/event-stream", status=500)
+
+
+# ★★★★★ '추천 기반 리포트 생성' 플로우를 위한 뷰 함수 2개 추가 ★★★★★
+
+# --- [View 9] 추천 로딩 페이지 뷰 ---
+def recommend_recommending_view(request):
+    """
+    이력서 선택 후 추천을 시작하면 보여지는 로딩 페이지.
+    Agent 호출을 시뮬레이션하고 결과 페이지로 리디렉션합니다.
+    """
+    resume_ids_str = request.GET.get('resumes', '')
+    if not resume_ids_str:
+        return redirect('resume_list')
+
+    # AJAX를 사용하지 않는 동기 방식에서는 로딩 페이지를 먼저 보여주고,
+    # JavaScript를 통해 다음 단계로 넘어가는 것이 일반적입니다.
+    # 여기서는 단순화를 위해 로딩 페이지 템플릿만 렌더링하고,
+    # 해당 템플릿에서 meta refresh나 JS로 결과 페이지를 요청하도록 합니다.
+    
+    # 1. 먼저 로딩 페이지를 렌더링해서 사용자에게 보여줍니다.
+    resume_ids = resume_ids_str.split(',')
+    selected_resumes = Resume.objects.filter(id__in=resume_ids)
+
+    # 2. Agent 호출 로직 (시뮬레이션)
+    # TODO: 이 부분에 실제 Agent 호출 로직을 구현합니다.
+    #       Agent는 이력서 정보를 받아 추천 공고 목록을 반환해야 합니다.
+    print(f"Agent 호출 시작: {len(resume_ids)}개의 이력서로 공고 추천 중...")
+    time.sleep(3)  # Agent가 작업하는 시간을 3초로 가정
+    
+    # Agent가 반환했다고 가정한 가짜 데이터
+    fake_recommended_jobs = [
+        {'id': 101, 'company': '삼성 SDS', 'title': '하반기 석박사 채용', 'location': '서울'},
+        {'id': 102, 'company': 'Apple', 'title': '강남 MD / Staff 모집', 'location': '서울'},
+        {'id': 103, 'company': '네이버', 'title': '클라우드 플랫폼 백엔드 개발자', 'location': '성남'},
+        {'id': 104, 'company': '카카오', 'title': '데이터 사이언티스트 (인턴)', 'location': '제주'},
+    ]
+    print("Agent 호출 완료. 추천 공고 반환.")
+    
+    # 3. 추천 결과와 이력서 ID를 세션에 저장하여 다음 뷰에서 사용하도록 합니다.
+    request.session['recommended_jobs'] = fake_recommended_jobs
+    request.session['selected_resume_ids'] = resume_ids
+    
+    # 4. 모든 작업이 끝났으면 결과 페이지로 리디렉션합니다.
+    # 사용자는 로딩 페이지를 잠시 본 후 이 페이지로 자동 이동하게 됩니다.
+    return redirect('recommend_result')
+
+
+# --- [View 10] 추천 결과 페이지 뷰 ---
+def recommend_result_view(request):
+    """
+    Agent가 추천한 공고 목록을 보여주고 사용자가 선택할 수 있게 합니다.
+    """
+    # 세션에서 추천 결과와 이력서 ID 가져오기
+    recommended_jobs = request.session.get('recommended_jobs')
+    resume_ids = request.session.get('selected_resume_ids')
+
+    # 세션에 데이터가 없으면 (예: 페이지를 새로고침하거나 직접 URL로 접근한 경우) 시작 페이지로 이동
+    if not recommended_jobs or not resume_ids:
+        # 적절한 오류 메시지를 보여주거나, 이력서 목록으로 리디렉션
+        return redirect('resume_list')
+    
+    selected_resumes = Resume.objects.filter(id__in=resume_ids)
+
+    context = {
+        'selected_resumes': selected_resumes,
+        'recommended_jobs': recommended_jobs,
+        'current_page': 'resume',
+        'switch_url_name': 'home',
+    }
+
+    # 세션 데이터를 사용 후에는 삭제하여 다음 요청에 영향을 주지 않도록 합니다.
+    if 'recommended_jobs' in request.session:
+        del request.session['recommended_jobs']
+    if 'selected_resume_ids' in request.session:
+        del request.session['selected_resume_ids']
+
+    return render(request, 'recommend_result.html', context)

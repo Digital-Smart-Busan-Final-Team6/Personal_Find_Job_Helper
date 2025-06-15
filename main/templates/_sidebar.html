@@ -1,3 +1,5 @@
+{% comment %} main/templates/_sidebar.html {% endcomment %}
+
 {% comment %}
 이 파일은 HTML 구조와 CSS 스타일을 모두 포함하는
 재사용 가능한 사이드바 '컴포넌트'입니다.
@@ -17,8 +19,6 @@
       flex-direction: column;
       align-items: center;
       transition: width 0.3s ease-in-out;
-      /* ★★★★★ 최종 수정 1: 모든 문제의 원인이었던 overflow 속성 제거 ★★★★★ */
-      /* overflow: hidden; */
       z-index: 1000;
     }
     .sidebar:hover {
@@ -52,7 +52,6 @@
       transition: color 0.2s;
     }
 
-    /* ★★★★★ 최종 수정 2: display 속성으로만 아이콘을 제어 ★★★★★ */
     .page-switch-icon {
       display: none; /* 평소에는 완전히 숨김 */
     }
@@ -120,17 +119,12 @@
         background: #000080;
     }
 
-    /* ★★★★★ 페이지 전환 아이콘 회전 애니메이션 (새로 추가) ★★★★★ */
-
-    /* 아이콘(i) 자체에 transition을 설정하여 모든 transform 변화가 부드럽게 일어나도록 합니다. */
     .page-switch-icon i {
-    display: inline-block; /* transform이 제대로 적용되도록 display 속성 추가 */
-    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1); /* 0.6초 동안 부드럽게 회전 */
+    display: inline-block;
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
     }
-
-    /* 링크(a)에 마우스를 올렸을 때 그 안의 아이콘(i)을 회전시킵니다. */
     .page-switch-icon:hover i {
-    transform: rotate(360deg); /* 시계방향으로 360도(한 바퀴) 회전 */
+    transform: rotate(360deg);
     }
 </style>
 
@@ -156,15 +150,15 @@
         </a>
       </li>
     {% elif current_page == 'resume' %}
-      <!-- 이력서 페이지 메뉴는 그대로 유지 -->
+      <!-- ★★★★★ 수정된 메뉴 항목들 ★★★★★ -->
       <li class="nav-item">
-        <a href="#" id="start-report-generation">
+        <a href="#" id="start-recommend-report">
           <i class="fas fa-lightbulb nav-icon"></i>
           <span class="nav-text">추천기반 리포트 생성</span>
         </a>
       </li>
       <li class="nav-item">
-        <a href="#">
+        <a href="#" id="start-job-search-report">
           <i class="fas fa-search nav-icon"></i>
           <span class="nav-text">공고검색 리포트 생성</span>
         </a>

@@ -1,0 +1,128 @@
+{% comment %} main/templates/recommend_result.html {% endcomment %}
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>추천 공고 목록</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #000080;
+        }
+        body {
+            background-color: #f4f4f8; font-family: 'Pretendard', sans-serif;
+            padding-left: 80px; color: #343a40; transition: padding-left 0.3s ease-in-out;
+            padding-bottom: 120px;
+        }
+        body:has(.sidebar:hover) { padding-left: 240px; }
+        .content-area { max-width: 900px; margin: 0 auto; padding: 50px 20px; }
+        .page-prompt {
+            font-size: 1.2rem; font-weight: 600;
+            color: #1a2b48; margin-bottom: 30px;
+        }
+        .job-card {
+            background-color: white; border-radius: 16px; padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+            border: 2px solid transparent; transition: all 0.3s;
+            display: flex; align-items: center; cursor: pointer; /* ★ 커서를 포인터로 변경 */
+            margin-bottom: 20px;
+        }
+        .job-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.06);
+        }
+        .job-card.selected {
+            border-color: var(--primary-color);
+            transform: translateY(0);
+            box-shadow: 0 0 0 3px var(--primary-color), 0 4px 6px rgba(0,0,0,0.08);
+        }
+        .job-info { flex-grow: 1; }
+        .job-info h5 { font-size: 1.2rem; font-weight: 700; margin-bottom: 5px; }
+        .job-info p { font-size: 0.95rem; color: #6c757d; margin: 0; }
+        .job-checkbox {
+            margin-left: 20px; width: 24px; height: 24px;
+            accent-color: var(--primary-color);
+            /* ★ 사용자가 직접 상호작용할 필요 없으므로 클릭 이벤트를 막음 */
+            pointer-events: none; 
+        }
+        .report-fab-container {
+            position: fixed; bottom: 30px; left: calc(50% + 40px);
+            transform: translateX(-50%); width: 90%; max-width: 600px;
+            z-index: 999; transition: left 0.3s ease-in-out;
+        }
+        body:has(.sidebar:hover) .report-fab-container { left: calc(50% + 120px); }
+        .generate-btn {
+            width: 100%; padding: 18px; font-size: 1.1rem; font-weight: 700;
+            border-radius: 16px; border: none; box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            background-color: #a9a9d4; color: #eef2ff; cursor: not-allowed; transition: all 0.3s;
+        }
+        .generate-btn:not(:disabled) {
+            background-color: var(--primary-color); color: white; cursor: pointer;
+        }
+    </style>
+</head>
+<body class="resume-page">
+    {% include '_sidebar.html' %}
+
+    <div class="content-area">
+        <div class="page-prompt">이력 사항을 바탕으로 다음 공고들을 추천 드립니다</div>
+        
+        <form action="#" method="post">
+            {% csrf_token %}
+            {% for job in recommended_jobs %}
+            <div class="job-card" data-job-id="{{ job.id }}">
+                <div class="job-info">
+                    <h5>{{ job.company }} - {{ job.title }}</h5>
+                    <p>{{ job.location }}</p>
+                </div>
+                <input type="checkbox" class="job-checkbox" name="selected_jobs" value="{{ job.id }}">
+            </div>
+            {% endfor %}
+
+            <div class="report-fab-container">
+                <button type="submit" class="generate-btn" id="final-report-btn" disabled>
+                    매칭 리포트를 생성할 공고를 선택해주세요
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const jobCards = document.querySelectorAll('.job-card');
+        const finalReportBtn = document.getElementById('final-report-btn');
+
+        function updateButtonState() {
+            const checkedCount = document.querySelectorAll('.job-checkbox:checked').length;
+            finalReportBtn.disabled = (checkedCount === 0);
+            if(checkedCount > 0) {
+                finalReportBtn.textContent = `이력-공고 매칭 리포트 생성하기`;
+            } else {
+                finalReportBtn.textContent = '매칭 리포트를 생성할 공고를 선택해주세요';
+            }
+        }
+
+        // ★★★★★ 선택 로직 수정 ★★★★★
+        jobCards.forEach(card => {
+            // 각 카드에 클릭 이벤트 리스너를 추가합니다.
+            card.addEventListener('click', () => {
+                const checkbox = card.querySelector('.job-checkbox');
+
+                // 1. 체크박스의 상태를 반전시킵니다.
+                checkbox.checked = !checkbox.checked;
+
+                // 2. 카드의 'selected' 클래스를 체크박스 상태에 따라 추가/제거합니다.
+                card.classList.toggle('selected', checkbox.checked);
+
+                // 3. 하단 버튼의 상태를 업데이트합니다.
+                updateButtonState();
+            });
+        });
+    });
+    </script>
+</body>
+</html>
