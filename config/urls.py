@@ -17,4 +17,5 @@ urlpatterns = [
     path('reports/job-search/', views.job_search_report_page, name='job_search_report'),
     path('reports/recommending/', views.recommend_recommending_view, name='recommend_recommending'),
     path('reports/results/', views.recommend_result_view, name='recommend_result'),
+    path('reports/generate-final-report/', views.generate_final_report_view, name='generate_final_report'),
 ]

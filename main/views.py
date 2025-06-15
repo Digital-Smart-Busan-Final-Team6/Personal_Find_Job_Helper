@@ -10,8 +10,8 @@ from accounts.models import Resume
 from accounts.forms import ResumeForm
 
 # Agent 관련 import (실제 구현 시 주석 해제)
-# from Run_Pipeline.Agent_Factory import get_agent_chain
-# from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
+from Run_Pipeline.Agent_Factory import get_agent_chain
+from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
 
 
 # --- [View 1] 챗봇이 있는 메인 페이지 ---
@@ -199,50 +199,97 @@ def chat_api(request):
         error_message = json.dumps({'error': f'서버 오류가 발생했습니다: {str(e)}'})
         return StreamingHttpResponse(f"data: {error_message}\n\n", content_type="text/event-stream", status=500)
 
-
-# ★★★★★ '추천 기반 리포트 생성' 플로우를 위한 뷰 함수 2개 추가 ★★★★★
-
 # --- [View 9] 추천 로딩 페이지 뷰 ---
 def recommend_recommending_view(request):
     """
     이력서 선택 후 추천을 시작하면 보여지는 로딩 페이지.
-    Agent 호출을 시뮬레이션하고 결과 페이지로 리디렉션합니다.
+    Agent를 호출하여 결과를 생성하고 결과 페이지로 리디렉션합니다.
     """
     resume_ids_str = request.GET.get('resumes', '')
     if not resume_ids_str:
         return redirect('resume_list')
 
-    # AJAX를 사용하지 않는 동기 방식에서는 로딩 페이지를 먼저 보여주고,
-    # JavaScript를 통해 다음 단계로 넘어가는 것이 일반적입니다.
-    # 여기서는 단순화를 위해 로딩 페이지 템플릿만 렌더링하고,
-    # 해당 템플릿에서 meta refresh나 JS로 결과 페이지를 요청하도록 합니다.
-    
-    # 1. 먼저 로딩 페이지를 렌더링해서 사용자에게 보여줍니다.
     resume_ids = resume_ids_str.split(',')
     selected_resumes = Resume.objects.filter(id__in=resume_ids)
 
-    # 2. Agent 호출 로직 (시뮬레이션)
-    # TODO: 이 부분에 실제 Agent 호출 로직을 구현합니다.
-    #       Agent는 이력서 정보를 받아 추천 공고 목록을 반환해야 합니다.
-    print(f"Agent 호출 시작: {len(resume_ids)}개의 이력서로 공고 추천 중...")
-    time.sleep(3)  # Agent가 작업하는 시간을 3초로 가정
+    # --- 1. 이력서 데이터 준비 ---
+    resume_texts = []
+    for i, resume in enumerate(selected_resumes, 1):
+        text = f"""### 이력서 {i}: {resume.title} ###
+- 희망 직무: {resume.job}
+- 희망 근무지: {resume.location}
+- 학력: {resume.university} {resume.major} ({resume.gpa})
+- 보유 기술: {resume.skills}
+"""
+        resume_texts.append(text)
+    combined_resume_text = "\n---\n".join(resume_texts)
+
+    # --- 2. LLM Agent를 위한 프롬프트 설계 ---
+    prompt = f"""
+당신은 최고의 커리어 컨설턴트입니다. 아래에 제공된 이력서 내용을 바탕으로, 이 사람(들)에게 가장 적합할 것으로 예상되는 최신 채용 공고를 5개 추천해 주세요.
+
+[이력서 내용]
+{combined_resume_text}
+
+[지시사항]
+1. 이력서의 희망 직무, 보유 기술, 학력 등을 종합적으로 고려하여 추천해야 합니다.
+2. 추천 결과는 반드시 아래와 같은 JSON 형식의 리스트로만 응답해야 합니다. 다른 설명은 절대 추가하지 마세요.
+3. 각 공고의 id는 임의의 고유한 정수 값을 부여하세요.
+
+```json
+[
+  {{"id": 101, "company": "회사명", "title": "공고 제목", "location": "근무지"}},
+  {{"id": 102, "company": "회사명", "title": "공고 제목", "location": "근무지"}}
+]
+"""
     
-    # Agent가 반환했다고 가정한 가짜 데이터
-    fake_recommended_jobs = [
-        {'id': 101, 'company': '삼성 SDS', 'title': '하반기 석박사 채용', 'location': '서울'},
-        {'id': 102, 'company': 'Apple', 'title': '강남 MD / Staff 모집', 'location': '서울'},
-        {'id': 103, 'company': '네이버', 'title': '클라우드 플랫폼 백엔드 개발자', 'location': '성남'},
-        {'id': 104, 'company': '카카오', 'title': '데이터 사이언티스트 (인턴)', 'location': '제주'},
-    ]
-    print("Agent 호출 완료. 추천 공고 반환.")
-    
-    # 3. 추천 결과와 이력서 ID를 세션에 저장하여 다음 뷰에서 사용하도록 합니다.
-    request.session['recommended_jobs'] = fake_recommended_jobs
+    # --- 3. Agent 호출 및 4. 결과 파싱 ---
+    recommended_jobs = []
+    try:
+        # 3.1 Agent 생성
+        agent = get_agent_chain()
+        
+        # 3.2 Agent 실행 (채팅이 아닌 단일 요청/응답에는 .invoke()가 더 적합)
+        #    이 프롬프트를 Agent에게 전달하여 결과를 요청합니다.
+        #    세션 ID 가져오기 (없으면 생성)
+        if not request.session.session_key:
+            request.session.create()
+        session_id = request.session.session_key
+
+        #    invoke 호출 시 config에 session_id 전달
+        print("실제 Agent 호출 시작...")
+        result = agent.invoke(
+            {"input": prompt},
+            config={"configurable": {"session_id": session_id}}
+        )
+        
+        # 3.3 결과 추출 (Agent의 출력 key가 'output'이라고 가정)
+        agent_output = result.get('output', '')
+        print(f"Agent로부터 받은 결과: {agent_output}")
+
+        # 3.4 LLM이 생성한 ```json ... ``` 코드 블록을 정리 (이 부분은 유지)
+        if "```json" in agent_output:
+            agent_output = agent_output.split("```json")[1].split("```")[0].strip()
+        
+        # 3.5 JSON 텍스트를 파이썬 리스트로 변환
+        recommended_jobs = json.loads(agent_output)
+        print("Agent 결과 파싱 성공!")
+
+    except json.JSONDecodeError:
+        print("오류: Agent가 유효한 JSON을 반환하지 않았습니다.")
+        recommended_jobs = [] 
+    except Exception as e:
+        print(f"Agent 호출 중 오류 발생: {e}")
+        recommended_jobs = []
+
+    # 추천 결과와 원본 이력서 ID를 세션에 저장
+    request.session['recommended_jobs'] = recommended_jobs
     request.session['selected_resume_ids'] = resume_ids
-    
-    # 4. 모든 작업이 끝났으면 결과 페이지로 리디렉션합니다.
-    # 사용자는 로딩 페이지를 잠시 본 후 이 페이지로 자동 이동하게 됩니다.
+
+    # 결과 페이지로 리디렉션
     return redirect('recommend_result')
+    
+
 
 
 # --- [View 10] 추천 결과 페이지 뷰 ---
@@ -264,6 +311,7 @@ def recommend_result_view(request):
     context = {
         'selected_resumes': selected_resumes,
         'recommended_jobs': recommended_jobs,
+        'resume_ids_str': ','.join(resume_ids),
         'current_page': 'resume',
         'switch_url_name': 'home',
     }
@@ -275,3 +323,94 @@ def recommend_result_view(request):
         del request.session['selected_resume_ids']
 
     return render(request, 'recommend_result.html', context)
+
+# --- [View 11] 최종 리포트 생성을 위한 페이지 뷰 ---
+def generate_final_report_view(request):
+    """
+    선택된 이력서와 추천 공고를 바탕으로 최종 매칭 리포트를 생성합니다.
+    """
+    if request.method != 'POST':
+        # POST 요청이 아니면 비정상적인 접근으로 보고 리디렉션
+        return redirect('resume_list')
+
+    # --- 폼에서 전송된 데이터 가져오기 ---
+    # 1. 'recommend_result.html'의 <input type="hidden" name="resume_ids" ...> 태그가 보낸 값을 받음
+    resume_ids_str = request.POST.get('resume_ids', '')
+    
+    # 2. 'recommend_result.html'의 <input type="checkbox" name="selected_jobs" ...> 태그들이 보낸 값들을 받음
+    selected_job_ids = request.POST.getlist('selected_jobs')
+
+    if not resume_ids_str or not selected_job_ids:
+        # 필요한 정보가 없으면 오류 처리 또는 리디렉션
+        return redirect('resume_list')
+
+    # --- 최종 리포트 생성을 위한 데이터 준비 ---
+    # 이력서 정보 가져오기
+    resume_ids = resume_ids_str.split(',')
+    resumes = Resume.objects.filter(id__in=resume_ids)
+    
+    # TODO: 실제 서비스에서는 DB에서 공고 정보를 가져와야 합니다.
+    # 지금은 가상의 공고 데이터에서 선택된 것만 필터링합니다.
+    all_fake_jobs = [
+        {'id': '101', 'company': '삼성 SDS', 'title': '하반기 석박사 채용'},
+        {'id': '102', 'company': 'Apple', 'title': '강남 MD / Staff 모집'},
+        {'id': '103', 'company': '네이버', 'title': '클라우드 플랫폼 백엔드 개발자'},
+        {'id': '104', 'company': '카카오', 'title': '데이터 사이언티스트 (인턴)'},
+        {'id': '105', 'company': '현대자동차', 'title': '자율주행 소프트웨어 엔지니어'}
+    ]
+    selected_jobs = [job for job in all_fake_jobs if job['id'] in selected_job_ids]
+
+    # --- 최종 리포트 생성을 위한 Agent 호출 ---
+    
+    # 1. 두 번째 Agent를 위한 새로운 프롬프트 설계
+    # 이력서와 공고 정보를 모두 텍스트로 변환하여 프롬프트에 포함시킵니다.
+    resume_details = "\n".join([f"- 이력서: {r.title}" for r in resumes])
+    job_details = "\n".join([f"- 공고: {j['company']} - {j['title']}" for j in selected_jobs])
+    
+    final_prompt = f"""
+당신은 경력 개발 전문가입니다. 아래 제공된 이력서들과 채용 공고들의 적합도를 상세하게 분석하고, 최종 매칭 리포트를 생성해 주세요.
+
+[분석 대상 이력서]
+{resume_details}
+
+[분석 대상 공고]
+{job_details}
+
+[리포트 작성 지시사항]
+1. 각 이력서와 공고의 핵심 요구사항 및 강점을 요약하세요.
+2. 이력서의 기술, 경험과 공고의 자격 요건을 비교하여 적합도를 분석해 주세요 (예: "매우 적합", "부분적으로 적합").
+3. 어떤 점에서 강점이 있고, 어떤 점이 부족할 수 있는지 구체적인 근거를 들어 설명해 주세요.
+4. 최종적으로 종합적인 평가와 지원자에게 도움이 될 만한 조언을 포함하여 리포트를 완성해 주세요.
+5. 친절하고 전문적인 어조로 작성해 주세요.
+"""
+
+    # 2. Agent 호출 및 결과 사용
+    try:
+        agent = get_agent_chain()
+        #  세션 ID 가져오기 (없으면 생성)
+        if not request.session.session_key:
+            request.session.create()
+        session_id = request.session.session_key
+
+        #  invoke 호출 시 config에 session_id 전달
+        print("최종 리포트 생성을 위해 Agent 호출...")
+        result = agent.invoke(
+            {"input": final_prompt},
+            config={"configurable": {"session_id": session_id}}
+        )
+        final_report_content = result.get('output', '리포트 생성 중 오류가 발생했습니다.')
+
+    except Exception as e:
+        print(f"최종 리포트 생성 Agent 호출 중 오류: {e}")
+        final_report_content = "AI 분석 중 오류가 발생하여 리포트를 생성할 수 없습니다."
+        
+
+    context = {
+        'resumes': resumes,
+        'jobs': selected_jobs,
+        'report_content': final_report_content, # ★ Agent가 생성한 실제 내용으로 교체됨
+        'current_page': 'resume',
+        'switch_url_name': 'home',
+    }
+    
+    return render(request, 'report_detail.html', context)

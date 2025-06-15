@@ -1,0 +1,48 @@
+{% comment %} main/templates/report_detail.html (신규 생성) {% endcomment %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>최종 매칭 리포트</title>
+    <!-- ... (기존 템플릿들의 head 태그 내용 복사) ... -->
+    <style>
+        /* ... (디자인에 맞는 스타일 추가) ... */
+        .report-section { background: white; padding: 30px; border-radius: 16px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .report-title { font-size: 1.5rem; font-weight: 700; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        .report-content { white-space: pre-wrap; /* 줄바꿈과 공백을 그대로 표시 */ line-height: 1.8; }
+    </style>
+</head>
+<body class="resume-page">
+    {% include '_sidebar.html' %}
+
+    <div class="content-area">
+        <h1 class="page-title mb-5">이력-공고 매칭 리포트</h1>
+
+        <div class="report-section">
+            <h2 class="report-title">분석 대상 이력서</h2>
+            <ul>
+                {% for resume in resumes %}
+                <li>{{ resume.title }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="report-section">
+            <h2 class="report-title">분석 대상 공고</h2>
+            <ul>
+                {% for job in jobs %}
+                <li>{{ job.company }} - {{ job.title }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="report-section">
+            <h2 class="report-title">AI 매칭 분석 결과</h2>
+            <div class="report-content">
+                {{ report_content }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
