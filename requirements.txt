@@ -30,6 +30,9 @@ debugpy
 sse_starlette
 peft
 django
+django-widget-tweaks
+django-crispy-forms
+crispy-bootstrap5
 matplot
 seaborn
 openai
@@ -40,3 +43,4 @@ datasets
 kagglehub
 langchain_experimental
 tabulate
+langchain_teddynote

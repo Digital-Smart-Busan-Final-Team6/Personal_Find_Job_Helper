@@ -4,13 +4,13 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
-from Agent_Tool import *
+from Agnet_Tools import *
 from Document_Loader import DocumentLoader
 from Document_Splitter import DocumentSplitter
 from Embedding_DB import EmbeddingDB
 from Env_Loader import EnvLoader
 from LLM_Factory import LLMFactory
-from Retriever_Builder import RetrieverBuilder
+from Retiever_Builder import RetrieverBuilder
 
 
 def main(return_chain_only: bool = False):
@@ -53,7 +53,6 @@ def main(return_chain_only: bool = False):
         k = 10
         engine_num = 1
         backend_num = 1
-
     # ③ 문서 로드
     loader = DocumentLoader(file_path, kind)  # 일반 파일들을 Document형태로 변환해서 다 불러옴
     docs = loader._load_json_files()
@@ -83,6 +82,7 @@ def main(return_chain_only: bool = False):
 
     agent = create_tool_calling_agent(llm, tools, AgentTools.PROMPT)
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
+
 
     # 도구 호출 시 실행되는 콜백 함수입니다.
     def tool_callback(tool) -> None:
@@ -114,6 +114,7 @@ def main(return_chain_only: bool = False):
     # AgentStreamParser 객체를 생성하여 에이전트의 실행 과정을 파싱합니다.
     agent_stream_parser = AgentStreamParser(agent_callbacks)
 
+
     store = {}
 
     def get_session_history(session_ids):
@@ -132,6 +133,9 @@ def main(return_chain_only: bool = False):
         history_messages_key="chat_history",
     )
 
+    if return_chain_only:
+        return agent_with_chat_history
+
     # ─── 여기에 while 루프 추가 ───
     print("질문을 입력하세요. 종료하려면 'exit'를 입력하세요.")
     while True:
@@ -148,7 +152,6 @@ def main(return_chain_only: bool = False):
         for step in result:
             agent_stream_parser.process_agent_steps(step)
         print()  # 다음 질문을 위해 줄바꿈
-
 
 if __name__ == "__main__":
     main()
