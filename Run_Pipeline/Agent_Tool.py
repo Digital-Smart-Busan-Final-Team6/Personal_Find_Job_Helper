@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import List, Optional, Any
 import pandas as pd
@@ -50,8 +51,8 @@ class AgentTools:
     5. “내 이력서” 또는 “내 경력”을 직접 언급하면 `resume_qa`.
     6. **"가장 적합한 공고", "내 이력서에 맞는 공고", "추천 공고"**와 같은 키워드로
        이력서와 공고 매칭을 요청하면 `find_best_job_match` 툴을 호출한다.
-    7. 사용자가 공고 ID를 지정하며 “상세 분석”, “리포트” 등을 요청하면 write_job_report 툴을 호출한다.
-    예) "278310 공고로 리포트 작성해 줘"
+    7. 사용자가 공고 를 지정하며 “상세 분석”, “리포트” 등을 요청하면 document_search로 공고를 검색 후, write_job_report 툴을 호출한다.
+    예) "제일 적합도가 높은 공고로 리포트 작성해 줘"
     8. 위 조건에 맞지 않으면 툴을 사용하지 않고 자체 지식으로 답한다.
 
     # 워크플로 예시 (Few-shot)
@@ -108,7 +109,7 @@ class AgentTools:
             AgentTools._create_image_generation_tool(),
             AgentTools._create_resume_tool(llm),
             AgentTools._create_job_match_tool(retriever),
-            AgentTools._create_job_analysis_tool(llm)
+            AgentTools._create_analysis_report_tool(llm)
         ]
 
         # ▒ file-management 툴 (여러 개) 추가
@@ -334,7 +335,7 @@ class AgentTools:
             if not resume_list:
                 return "이력서가 비어 있어 매칭을 수행할 수 없습니다."
 
-            resume = resume_list[1]  # 첫 번째 이력서
+            resume = resume_list[0]  # 첫 번째 이력서
             resume_text, resume_years, resume_stacks = _combine_resume(resume)
 
             # 모델 & 이력서 임베딩
@@ -407,197 +408,55 @@ class AgentTools:
             ),
         )
 
-    # 8) 보고서 상세 작성 툴
-# ────────────────────── 8) 보고서 작성 툴 ──────────────────────
     @staticmethod
-    def _create_report_tool(llm, retriever) -> Tool:
-        """
-        사용자가 지정한 주제·형식에 맞춰 보고서를 작성하고,
-        Markdown 파일로 저장한 뒤 파일 경로를 반환합니다.
-        """
-
-        REPORT_DIR = BASE_DIR / "Reports"
-        REPORT_DIR.mkdir(exist_ok=True)
-
-        def _write_report(query: str = "") -> str:
-            """
-            query 예시:
-            "올해 상반기 프론트엔드 채용 시장 동향 3p 보고서"
-            """
-
-            # ① 관련 문서 RAG (선택)
-            docs = []
-            if retriever is not None:
-                docs = retriever.get_relevant_documents(query)
-                doc_chunks = "\n\n".join(d.page_content for d in docs[:5])
-            else:
-                doc_chunks = ""
-
-            # ② 프롬프트 구성
-            prompt = f"""
-            너는 시니어 리서치 애널리스트야. 다음 조건을 지켜 Markdown 보고서를 작성해 줘.
-
-            # 보고서 주제
-            "{query}"
-
-            # 참고 문서 (있으면 활용, 없어도 됨)
-            {doc_chunks}
-
-            # 필수 형식
-            1. 제목
-            2. 목차
-            3. 본문 (소제목 h2~h3 사용)
-            4. 인사이트 3가지
-            5. 참고·출처
-
-            # 기타
-            * 한국어
-            * 3~5 page 분량 (약 1,200~2,000자)  # 필요시 분량 기준 변경
-            """
-
-            report_md = llm.invoke(prompt).content.strip()
-
-            # ③ 파일 저장
-            from datetime import datetime
-            filename = f"report_{datetime.now():%Y%m%d_%H%M%S}.md"
-            path = REPORT_DIR / filename
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(report_md)
-
-            return str(path)  # 에이전트가 사용자에게 경로 전달
-
-        return Tool.from_function(
-            func=_write_report,
-            name="write_report",
-            description="사용자 요청 주제에 대해 Markdown 보고서를 작성하고 파일로 저장한다.",
-        )
-
-# ───────────────── 9) 선택 공고 상세 리포트 툴 ─────────────────
-    @staticmethod
-    def _create_job_analysis_tool(llm) -> Tool:
-        """
-        사용자가 선택한 공고 ID를 입력하면
-        ① 공고 상세 요약
-        ② 이력서 vs. 요구 조건 매칭 결과
-        ③ 부족/강점 항목 + 개선 액션
-        ④ 예상 면접 질문
-        ⑤ 참고 링크
-        를 포함한 Markdown 리포트를 작성하고 파일로 저장한 뒤 경로를 반환.
-        """
-
+    def _create_analysis_report_tool(llm):
         DATA_DIR = BASE_DIR / "Data_Files"
-        JOB_FILE = DATA_DIR / "wanted_detail_improve_20250604.json"
-        RESUME_FILE = DATA_DIR / "resume_sample.json"
-        REPORT_DIR = BASE_DIR / "Reports"
-        REPORT_DIR.mkdir(exist_ok=True)
+        with open(DATA_DIR / "resume.json", "r", encoding="utf-8") as f:
+            resume = json.load(f)
 
-        # ── 공용 로더 ───────────────────────────────────────────
-        import functools, datetime, json
-        @functools.lru_cache(maxsize=1)
-        def _load_json(path: Path):
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
+        resume_my = resume[0]
 
-        jobs_all = _load_json(JOB_FILE)
-        resumes = _load_json(RESUME_FILE)
-        resume = resumes[0] if resumes else {}
-
-        # ── 내부 함수 (Tool action) ─────────────────────────────
-        def _write_job_report(job_id: str,
-                              depth: str = "full",
-                              fmt: str = "md") -> str:
-            """
-            Parameters
-            ----------
-            job_id : str   # 표에서 사용자가 고른 공고 ID
-            depth   : {"quick", "full"}  # 요약/상세 여부
-            fmt     : {"md", "pdf", "docx"}
-            """
-
-            job = jobs_all.get(job_id)
-            if job is None:
-                return f"공고 ID {job_id} 를 찾을 수 없습니다."
-
-            # 1) 공고·이력서 핵심 텍스트 정리
-            job_core = (
-                f"제목: {job.get('제목')}\n"
-                f"회사: {job.get('회사 소개')}\n"
-                f"주요 업무: {' '.join(job.get('주요 업무', []))}\n"
-                f"자격 요건: {' '.join(job.get('자격 요건', []))}\n"
-                f"우대 사항: {' '.join(job.get('우대 사항', []))}\n"
-                f"기술 스택: {', '.join(job.get('기술 스택', []))}\n"
-                f"지역: {', '.join(job.get('지역', []))}\n"
-            )
-
-            resume_core = (
-                f"이름: {resume.get('name','')}\n"
-                f"희망 직무: {', '.join(resume.get('job_interests', []))}\n"
-                f"보유 기술: {resume.get('skills', '')}\n"
-                f"주요 경험: {resume.get('experience_summary', '')}"
-            )
-
-            # 2) 분석 프롬프트
+        def _write_job_report(
+                depth: str = "detailed",  # 'quick' or 'detailed'
+                fmt: str = "md") -> str:
+            # 3) LLM 프롬프트
             prompt = f"""
             # 역할
-            너는 취업 컨설턴트이자 채용 공고 분석 전문가야.
-
-            # 목표
-            선택한 공고(ID: {job_id})와 구직자의 이력서를 비교해
-            '지원 전략 리포트'를 작성해 줘.
-
-            # 포함 항목 (depth='{depth}')
-            1. 공고 요약
-            2. 공고 핵심 요구 사항 (표)
-            3. 이력서-공고 매칭 분석 (강점 / 부족 / 중립)
-            4. 부족 부분 개선 액션 플랜
-            5. 예상 면접 질문 5개와 모범 답변 키워드
-            6. 최종 코멘트 (합격 가능성, 주의점)
-
-            # 참고 데이터
-            ## Job Posting
-            {job_core}
+            당신은 취업 컨설턴트이자 채용 공고 분석 전문가입니다.
 
             ## Resume
-            {resume_core}
+            {resume_my}
+
+            # 포함 항목
+            1. 공고 요약
+            2. 요구 사항 표
+            3. 매칭 분석 (강점 / 부족 / 중립)
+            4. 개선 액션 플랜
+            5. 예상 면접 질문 5개 (키워드)
 
             # 형식
-            * Markdown 사용
-            * 적절히 소제목 활용
-            * 표는 마크다운 표
-            * 분량: {'약 600자' if depth=='quick' else '약 1200~1600자'}
+            * Markdown
+            * 분량: {"약 600자" if depth == "quick" else "약 1200~1600자"}
             """
 
             report_md = llm.invoke(prompt).content.strip()
 
-            # 3) 파일 저장
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            basename = f"job_report_{job_id}_{ts}"
-            path = REPORT_DIR / f"{basename}.md"
-            path.write_text(report_md, encoding="utf-8")
+            # 4) 저장 (원하면 PDF 변환도)
+            from datetime import datetime
+            p = Path("Reports") / f"job_report_{datetime.now():%Y%m%d_%H%M%S}.md"
+            p.parent.mkdir(exist_ok=True)
+            p.write_text(report_md, encoding="utf-8")
 
-            # 4) 필요 시 원하는 포맷으로 변환
-            if fmt in {"pdf", "docx"}:
-                import subprocess, shutil
-                if shutil.which("pandoc"):
-                    out_path = path.with_suffix(f".{fmt}")
-                    subprocess.run(["pandoc", str(path), "-o", str(out_path)])
-                    path = out_path
-                else:
-                    report_md += (
-                        f"\n\n(Pandoc 미설치로 {fmt.upper()} 변환 실패 – "
-                        f"Markdown만 제공합니다.)"
-                    )
-                    path.write_text(report_md, encoding="utf-8")
+            if fmt in {"pdf", "docx"} and shutil.which("pandoc"):
+                out = p.with_suffix(f".{fmt}")
+                import subprocess
+                subprocess.run(["pandoc", str(p), "-o", str(out)])
+                p = out
 
-            return str(path)
+            return str(p)
 
-        # ── Tool 래핑 ────────────────────────────────────────────
         return Tool.from_function(
             func=_write_job_report,
             name="write_job_report",
-            description=(
-                "공고 ID를 받아 상세 분석 리포트를 작성하고 파일로 저장한다. "
-                "옵션: depth={'quick','full'}, fmt={'md','pdf','docx'}."
-            ),
+            description="job_id에 해당하는 공고를 RAG로 불러와 상세 분석 리포트를 작성한다.",
         )
-
