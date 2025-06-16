@@ -1,552 +1,812 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
-    <!-- 뷰에서 전달된 is_edit_mode에 따라 제목을 동적으로 변경 -->
-    <title>{% if is_edit_mode %}이력서 수정{% else %}이력서 추가{% endif %}</title>
+    <title>{% if is_edit_mode %}이력서 수정{% else %}새 이력서 작성{% endif %}</title>
+
+    <!-- 1. 기본 라이브러리 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- skills에 쓸 Tagify 라이브러리 추가 -->
+
+    <!-- 2. Tagify 라이브러리 -->
     <link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
-    <!-- <link rel="stylesheet" href="{% static 'css/style.css' %}"> --> 
-    <style>
-        /* 이전에 제공해주신 mypage.html의 스타일을 그대로 가져왔습니다. */
-        body {
-            background: linear-gradient(135deg, #6a8df0, #c2d1f0);
-            color: #333;
-            font-family: 'Segoe UI', sans-serif;
-            padding: 40px;
-        }
-        .sidebar {
-            background-color: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            height: 100%;
-        }
-        .content-card {
-            background-color: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-        }
-        .nav-link {
-            color: #3b57c1;
-            font-weight: bold;
-        }
-        .nav-link.active {
-            background-color: #e9f0ff;
-            border-radius: 8px;
-        }
-        h4 {
-            margin-bottom: 20px;
-            color: #3b57c1;
-        }
-        .job-container {
-            display: flex;
-            border: 1px solid #d6e0ff;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 0 8px rgba(80, 120, 255, 0.1);
-            margin-top: 20px;
-            align-items: flex-start;
-        }
-        .job-categories {
-            width: 30%;
-            background-color: #f8f9fa;
-            border-right: 1px solid #d6e0ff;
-        }
-        .job-categories ul { list-style: none; padding: 0; margin: 0; }
-        .job-categories li { padding: 15px; cursor: pointer; font-weight: bold; border-bottom: 1px solid #e0e6f5; }
-        .job-categories li.active { background-color: #e9f0ff; color: #3b57c1; }
-        .job-subcategories { width: 70%; padding: 20px; display: flex; flex-wrap: wrap; gap: 12px; }
-        .subcategory-group { display: none; margin: 0; padding: 0; width: 100%; }
-        .subcategory-group.active { display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; }
-        .subcategory-group label { display: inline-flex; align-items: center; padding: 8px 12px; gap: 8px; border-radius: 8px; background-color: #f1f4ff; border: 1px solid #c3d4ff; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap; user-select: none; }
-        .subcategory-group input[type="checkbox"] { width: 18px; height: 18px; margin: 0; flex-shrink: 0; }
 
-        .tagify {
-            --tag-bg: #e9f0ff;
-            --tag-hover: #d0dfff;
-            --tag-text-color: #3b57c1;
-            --tag-remove-btn-color: #3b57c1;
-            border: 1px solid #ced4da; /* Bootstrap의 기본 테두리 색상 */
-            border-radius: .375rem; /* Bootstrap의 기본 테두리 둥글기 */
+    <!-- 3. 구글 폰트 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- 기본 설정 & 변수 --- */
+        :root {
+            --primary-color: #4a69bd;
+            /* 차분한 네이비 */
+            --primary-light: #e9f0ff;
+            --secondary-color: #7a7a7a;
+            --background-color: #f7f9fc;
+            --card-background: #ffffff;
+            --border-color: #e9ecef;
+            --shadow-color: rgba(74, 105, 189, 0.15);
+            --font-family: 'Pretendard', sans-serif;
         }
+
+        /* --- 전체 레이아웃 --- */
+        body {
+            background-color: var(--background-color);
+            color: #333;
+            font-family: var(--font-family);
+            padding: 50px;
+        }
+
+        .form-container {
+            max-width: 1200px;
+            margin: auto;
+            background: var(--card-background);
+            border-radius: 24px;
+            box-shadow: 0 15px 40px var(--shadow-color);
+            overflow: hidden;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 260px;
+            /* 사이드바의 너비를 고정값으로 설정 */
+            flex-shrink: 0;
+            /* 컨텐츠가 많아져도 너비가 줄어들지 않도록 함 */
+            background-color: #f8f9fc;
+            /* 배경색을 살짝 변경하여 구분감 부여 */
+            padding: 30px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 40px 50px;
+        }
+
+        /* --- 헤더 --- */
+        .form-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .form-header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            /* 제목과 입력창 사이 여백 추가 */
+        }
+
+        #id_title {
+            border: 2px solid #e0e6f5;
+            /* 테두리를 명확하게 표시 */
+            border-radius: 12px;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            box-shadow: none !important;
+            transition: all 0.2s;
+        }
+
+        #id_title:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.2) !important;
+        }
+
+        /* --- 사이드바 (탭 메뉴) --- */
+        .nav-pills .nav-link {
+            color: #495057;
+            /* 기본 글자색을 약간 어둡게 */
+            font-weight: 600;
+            text-align: left;
+            padding: 13px 20px;
+            /* 패딩 조정 */
+            margin-bottom: 8px;
+            border-radius: 12px;
+            transition: all 0.2s ease-in-out;
+            white-space: nowrap;
+            /* 텍스트가 길어져도 줄바꿈되지 않도록 함 */
+            overflow: hidden;
+            /* 넘치는 텍스트는 숨김 */
+            text-overflow: ellipsis;
+            /* 넘치는 텍스트는 ...으로 표시 */
+        }
+
+        .nav-pills .nav-link:hover {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+
+        .nav-pills .nav-link.active {
+            background: linear-gradient(90deg, var(--primary-color), #6a8df0);
+            /* 그라데이션 적용 */
+            color: white;
+            box-shadow: 0 5px 15px var(--shadow-color);
+            transform: scale(1.02);
+            /* 살짝 커지는 효과 */
+        }
+
+        /* --- 콘텐츠 영역 --- */
+        .tab-content h4 {
+            font-weight: 700;
+            color: var(--primary-color);
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-light);
+            margin-bottom: 25px;
+        }
+
+        .tab-pane {
+            /* 탭 전환 애니메이션 */
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- 폼 요소 스타일 --- */
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.2);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+        }
+
+        /* --- 희망 직무/근무지 선택 UI --- */
+        .job-categories {
+            /* 이 부분은 이제 ul/li가 아니라 div > button 형태로 변경됩니다. */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 25px;
+        }
+
+        .job-category-btn {
+            /* 새로운 클래스 */
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            color: var(--text-light, #6c757d);
+            padding: 10px 18px;
+            border-radius: 50px;
+            /* 알약 모양 */
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .job-category-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .job-category-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+
+        .subcategory-group {
+            display: none;
+            flex-wrap: wrap;
+            /* 가로로 채워지면 다음 줄로 넘어가도록 설정 */
+            gap: 12px;
+        }
+
+        .subcategory-group.active {
+            display: flex;
+            /* 활성화된 그룹만 보이도록 */
+        }
+
+        .subcategory-group label {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 15px;
+            /* 패딩 조정 */
+            gap: 8px;
+            border-radius: 20px;
+            /* 더 둥글게 */
+            background-color: #f1f4ff;
+            border: 1px solid transparent;
+            /* 기본 테두리는 투명하게 */
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .subcategory-group input[type="checkbox"] {
+            display: none;
+            /* 체크박스는 숨김 */
+        }
+
+        /* 체크되었을 때의 스타일 */
+        .subcategory-group input[type="checkbox"]:checked+span {
+            /* 이 스타일을 적용하려면 HTML에서 텍스트를 span으로 감싸야 합니다. */
+            /* 아래 HTML 수정 부분을 참고하세요. */
+        }
+
+        /* 체크된 항목의 부모 label에 스타일 적용 */
+        .subcategory-group label:has(input:checked) {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+            font-weight: 700;
+        }
+
+
+        /* --- Tagify (보유 기술) --- */
+        .tagify {
+            --tag-bg: var(--primary-light);
+            --tag-hover: #d0dfff;
+            --tag-text-color: var(--primary-color);
+            --tag-remove-btn-color: var(--primary-color);
+            border: 1px solid var(--border-color);
+        }
+
         .tagify--focus {
-            border-color: #86b7fe; /* Bootstrap의 focus 테두리 색상 */
-            box-shadow: 0 0 0 .25rem rgba(13,110,253,.25);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.2);
+        }
+
+        .tagify__dropdown__header {
+            background: #f1f1f1;
+            padding: 8px 12px;
+            font-weight: 700;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* --- 저장 버튼 --- */
+        .submit-container {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, var(--primary-color), #6a8df0);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px var(--shadow-color);
+            transition: all 0.3s ease-in-out;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(74, 105, 189, 0.3);
         }
     </style>
 </head>
+
 <body>
-    <!-- 
-        form의 action 속성을 비워두면 현재 페이지의 URL로 데이터를 전송합니다.
-        추가 페이지(/resumes/add/)에서는 추가 로직(resume_add_view)이,
-        수정 페이지(/resumes/edit/1/)에서는 수정 로직(resume_edit_view)이 처리합니다.
-    -->
     <form method="post">
         {% csrf_token %}
-        <div class="container">
-            <div class="mb-4 text-center">
-                <label for="id_title" class="form-label h1" style="color: #3b57c1;">
-                    {% if is_edit_mode %}이력서 수정{% else %}새 이력서 작성{% endif %}
-                </label>
-                {{ form.title }}
+        <div class="form-container">
+            <!-- 왼쪽 메뉴 -->
+            <div class="sidebar">
+                <div class="nav flex-column nav-pills" id="v-tabs" role="tablist" aria-orientation="vertical">
+                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#content-education"
+                        type="button">학력/경력</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-experience"
+                        type="button">경험/활동</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-certs"
+                        type="button">수상/자격증/어학</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-skills" type="button">보유
+                        기술</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-job" type="button">희망
+                        직무</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-location" type="button">희망
+                        근무지</button>
+                </div>
             </div>
-            
-            <div class="row">
-                <!-- 왼쪽 메뉴 -->
-                <div class="col-md-3 sidebar">
-                    <div class="nav flex-column nav-pills" id="v-tabs" role="tablist" aria-orientation="vertical">
-                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#content-education" type="button">학력/경력</button>
-                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-job" type="button">희망 직무</button>
-                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-location" type="button">희망 근무지</button>
-                        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-skills" type="button">보유 기술</button>
-                    </div>
+
+            <!-- 오른쪽 콘텐츠 -->
+            <div class="main-content">
+                <div class="form-header">
+                    <h1>{% if is_edit_mode %}이력서 수정{% else %}새 이력서 작성{% endif %}</h1>
+                    <!-- {{ form.title }} 대신 input 태그를 직접 작성하여 placeholder를 추가합니다. -->
+                    <input type="text" name="{{ form.title.name }}" id="id_title" class="form-control"
+                        placeholder="이력서의 제목을 입력해주세요 (예: 백엔드 개발자 이력서)" value="{{ form.title.value|default:'' }}"
+                        maxlength="200" required>
                 </div>
 
-                <!-- 오른쪽 콘텐츠 -->
-                <div class="col-md-9">
-                    <div class="tab-content content-card" id="v-tabs-content">
-                        <!-- 학력 -->
-                        <div class="tab-pane fade show active" id="content-education" role="tabpanel">
-                            <h4 class="mb-3">학력</h4>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">최종 학력</label>
-                                    {{ form.education_level }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">학교명</label>
-                                    {{ form.university }}
-                                </div>
+                <div class="tab-content" id="v-tabs-content">
+                    <!-- 학력/경력 -->
+                    <div class="tab-pane fade show active" id="content-education" role="tabpanel">
+                        <h4>학력 및 경력</h4>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6"><label class="form-label">최종 학력</label>{{ form.education_level }}
                             </div>
-                            <div class="row mb-3">
-                                <!-- ▼▼▼ 한 줄에 3개의 필드를 배치하도록 col-md-4로 수정합니다. ▼▼▼ -->
-                                <div class="col-md-4">
-                                    <label class="form-label">전공</label>
-                                    {{ form.major }}
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">학점</label>
-                                    {{ form.gpa }}
-                                </div>
-                                <div class="col-md-4">
-                                    <!-- ▼▼▼ '경력(년)' 필드를 여기에 추가합니다. ▼▼▼ -->
-                                    <label class="form-label">경력(년)</label>
-                                    {{ form.experience_years }}
-                                </div>
+                            <div class="col-md-6"><label class="form-label">경력(년)</label>{{ form.experience_years }}
                             </div>
                         </div>
+                        <div class="row g-3">
+                            <div class="col-md-6"><label class="form-label">학교명</label>{{ form.university }}</div>
+                            <div class="col-md-6"><label class="form-label">전공</label>{{ form.major }}</div>
+                        </div>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6"><label class="form-label">학점</label>{{ form.gpa }}</div>
+                        </div>
+                    </div>
 
-                        <!-- 희망 직무  -->
-                        <div class="tab-pane fade" id="content-job" role="tabpanel">
-                            <h4 class="mb-3">희망 직무 <span class="text-danger">*</span></h4>
-                        <div class="job-container">
-                            <div class="job-categories">
-                                <ul>
-                                    <li class="active" data-category="it">IT 개발, 데이터</li>
-                                    <li data-category="design">디자인</li>
-                                    <li data-category="sales">영업, 판매 무역</li>
-                                    <li data-category="cs">고객상담, TM</li>
-                                    <li data-category="purchase">구매 자재 분류</li>
-                                    <li data-category="md">상품 기획, MD</li>
-                                </ul>
-                            </div>
-                            <div class="job-subcategories">
-                                <div class="subcategory-group active" data-category="it">
-                                    <label><input type="checkbox" name="job" value="개발PM" {% if '개발PM' in selected_jobs %}checked{% endif %}> 개발PM</label>
-                                    <label><input type="checkbox" name="job" value="게임개발" {% if '게임개발' in selected_jobs %}checked{% endif %}> 게임개발</label>
-                                    <label><input type="checkbox" name="job" value="기술지원" {% if '기술지원' in selected_jobs %}checked{% endif %}> 기술지원</label>
-                                    <label><input type="checkbox" name="job" value="데이터 사이언티스트" {% if '데이터 사이언티스트' in selected_jobs %}checked{% endif %}> 데이터 사이언티스트</label>
-                                    <label><input type="checkbox" name="job" value="데이터분석가" {% if '데이터분석가' in selected_jobs %}checked{% endif %}> 데이터분석가</label>
-                                    <label><input type="checkbox" name="job" value="데이터엔지니어" {% if '데이터엔지니어' in selected_jobs %}checked{% endif %}> 데이터엔지니어</label>
-                                    <label><input type="checkbox" name="job" value="백엔드/서버개발" {% if '백엔드/서버개발' in selected_jobs %}checked{% endif %}> 백엔드/서버개발</label>
-                                    <label><input type="checkbox" name="job" value="보안관제" {% if '보안관제' in selected_jobs %}checked{% endif %}> 보안관제</label>
-                                    <label><input type="checkbox" name="job" value="보안컨설팅" {% if '보안컨설팅' in selected_jobs %}checked{% endif %}> 보안컨설팅</label>
-                                    <label><input type="checkbox" name="job" value="앱개발" {% if '앱개발' in selected_jobs %}checked{% endif %}> 앱개발</label>
-                                    <label><input type="checkbox" name="job" value="웹개발" {% if '웹개발' in selected_jobs %}checked{% endif %}> 웹개발</label>
-                                    <label><input type="checkbox" name="job" value="프론트엔드" {% if '프론트엔드' in selected_jobs %}checked{% endif %}> 프론트엔드</label>
-                                    <label><input type="checkbox" name="job" value="DBA" {% if 'DBA' in selected_jobs %}checked{% endif %}> DBA</label>
-                                    <label><input type="checkbox" name="job" value="SE(시스템엔지니어)" {% if 'SE(시스템엔지니어)' in selected_jobs %}checked{% endif %}> SE(시스템엔지니어)</label>
-                                </div>
-                                <div class="subcategory-group" data-category="design">
-                                    <label><input type="checkbox" name="job" value="UI/UX디자이너" {% if 'UI/UX디자이너' in selected_jobs %}checked{% endif %}> UI/UX디자이너</label>
-                                    <label><input type="checkbox" name="job" value="웹디자이너" {% if '웹디자이너' in selected_jobs %}checked{% endif %}> 웹디자이너</label>
-                                    <label><input type="checkbox" name="job" value="그래픽디자이너" {% if '그래픽디자이너' in selected_jobs %}checked{% endif %}> 그래픽디자이너</label>
-                                    <label><input type="checkbox" name="job" value="영상디자이너" {% if '영상디자이너' in selected_jobs %}checked{% endif %}> 영상디자이너</label>
-                                </div>
-                                <div class="subcategory-group" data-category="sales">
-                                    <label><input type="checkbox" name="job" value="국내영업" {% if '국내영업' in selected_jobs %}checked{% endif %}> 국내영업</label>
-                                    <label><input type="checkbox" name="job" value="해외영업" {% if '해외영업' in selected_jobs %}checked{% endif %}> 해외영업</label>
-                                    <label><input type="checkbox" name="job" value="무역사무" {% if '무역사무' in selected_jobs %}checked{% endif %}> 무역사무</label>
-                                    <label><input type="checkbox" name="job" value="영업기획" {% if '영업기획' in selected_jobs %}checked{% endif %}> 영업기획</label>
-                                </div>
-                                <div class="subcategory-group" data-category="cs">
-                                    <label><input type="checkbox" name="job" value="고객센터" {% if '고객센터' in selected_jobs %}checked{% endif %}> 고객센터</label>
-                                    <label><input type="checkbox" name="job" value="텔레마케터" {% if '텔레마케터' in selected_jobs %}checked{% endif %}> 텔레마케터</label>
-                                    <label><input type="checkbox" name="job" value="CS매니저" {% if 'CS매니저' in selected_jobs %}checked{% endif %}> CS매니저</label>
-                                </div>
-                                <div class="subcategory-group" data-category="purchase">
-                                    <label><input type="checkbox" name="job" value="구매" {% if '구매' in selected_jobs %}checked{% endif %}> 구매</label>
-                                    <label><input type="checkbox" name="job" value="자재관리" {% if '자재관리' in selected_jobs %}checked{% endif %}> 자재관리</label>
-                                    <label><input type="checkbox" name="job" value="물류" {% if '물류' in selected_jobs %}checked{% endif %}> 물류</label>
-                                </div>
-                                <div class="subcategory-group" data-category="md">
-                                    <label><input type="checkbox" name="job" value="상품기획" {% if '상품기획' in selected_jobs %}checked{% endif %}> 상품기획</label>
-                                    <label><input type="checkbox" name="job" value="MD" {% if 'MD' in selected_jobs %}checked{% endif %}> MD</label>
-                                    <label><input type="checkbox" name="job" value="VMD" {% if 'VMD' in selected_jobs %}checked{% endif %}> VMD</label>
-                                </div>
-                            </div>
+                    <!-- 경험/활동 -->
+                    <div class="tab-pane fade" id="content-experience" role="tabpanel">
+                        <h4>경험 / 활동 / 교육</h4>
+                        {{ form.experience }}
+                    </div>
+
+                    <!-- 수상/자격증/어학 -->
+                    <div class="tab-pane fade" id="content-certs" role="tabpanel">
+                        <h4>수상 / 자격증 / 어학</h4>
+                        {{ form.certifications }}
+                    </div>
+
+                    <!-- 보유 기술 -->
+                    <div class="tab-pane fade" id="content-skills" role="tabpanel">
+                        <h4>보유 기술</h4>
+                        {{ form.skills }}
+                    </div>
+
+                    <!-- 희망 직무 -->
+            <div class="tab-pane fade" id="content-job" role="tabpanel">
+                <h4>희망 직무 <span class="text-danger">*</span></h4>
+                <div class="job-container">
+                    <div class="job-categories">
+                        <button type="button" class="job-category-btn active" data-category="it">IT 개발, 데이터</button>
+                        <button type="button" class="job-category-btn" data-category="design">디자인</button>
+                        <button type="button" class="job-category-btn" data-category="sales">영업, 판매 무역</button>
+                        <button type="button" class="job-category-btn" data-category="cs">고객상담, TM</button>
+                        <button type="button" class="job-category-btn" data-category="purchase">구매 자재 분류</button>
+                        <button type="button" class="job-category-btn" data-category="md">상품 기획, MD</button>
+                    </div>
+                    <div class="job-subcategories">
+                        <div class="subcategory-group active" data-category="it">
+                            <label><input type="checkbox" name="job" value="개발PM" {% if '개발PM' in selected_jobs %}checked{% endif %}><span>개발PM</span></label>
+                            <label><input type="checkbox" name="job" value="게임개발" {% if '게임개발' in selected_jobs %}checked{% endif %}><span>게임개발</span></label>
+                            <label><input type="checkbox" name="job" value="기술지원" {% if '기술지원' in selected_jobs %}checked{% endif %}><span>기술지원</span></label>
+                            <label><input type="checkbox" name="job" value="데이터 사이언티스트" {% if '데이터 사이언티스트' in selected_jobs %}checked{% endif %}><span>데이터 사이언티스트</span></label>
+                            <label><input type="checkbox" name="job" value="데이터분석가" {% if '데이터분석가' in selected_jobs %}checked{% endif %}><span>데이터분석가</span></label>
+                            <label><input type="checkbox" name="job" value="데이터엔지니어" {% if '데이터엔지니어' in selected_jobs %}checked{% endif %}><span>데이터엔지니어</span></label>
+                            <label><input type="checkbox" name="job" value="백엔드/서버개발" {% if '백엔드/서버개발' in selected_jobs %}checked{% endif %}><span>백엔드/서버개발</span></label>
+                            <label><input type="checkbox" name="job" value="보안관제" {% if '보안관제' in selected_jobs %}checked{% endif %}><span>보안관제</span></label>
+                            <label><input type="checkbox" name="job" value="보안컨설팅" {% if '보안컨설팅' in selected_jobs %}checked{% endif %}><span>보안컨설팅</span></label>
+                            <label><input type="checkbox" name="job" value="앱개발" {% if '앱개발' in selected_jobs %}checked{% endif %}><span>앱개발</span></label>
+                            <label><input type="checkbox" name="job" value="웹개발" {% if '웹개발' in selected_jobs %}checked{% endif %}><span>웹개발</span></label>
+                            <label><input type="checkbox" name="job" value="프론트엔드" {% if '프론트엔드' in selected_jobs %}checked{% endif %}><span>프론트엔드</span></label>
+                            <label><input type="checkbox" name="job" value="DBA" {% if 'DBA' in selected_jobs %}checked{% endif %}><span>DBA</span></label>
+                            <label><input type="checkbox" name="job" value="SE(시스템엔지니어)" {% if 'SE(시스템엔지니어)' in selected_jobs %}checked{% endif %}><span>SE(시스템엔지니어)</span></label>
                         </div>
+                        <div class="subcategory-group" data-category="design">
+                            <label><input type="checkbox" name="job" value="UI/UX디자이너" {% if 'UI/UX디자이너' in selected_jobs %}checked{% endif %}><span>UI/UX디자이너</span></label>
+                            <label><input type="checkbox" name="job" value="웹디자이너" {% if '웹디자이너' in selected_jobs %}checked{% endif %}><span>웹디자이너</span></label>
+                            <label><input type="checkbox" name="job" value="그래픽디자이너" {% if '그래픽디자이너' in selected_jobs %}checked{% endif %}><span>그래픽디자이너</span></label>
+                            <label><input type="checkbox" name="job" value="영상디자이너" {% if '영상디자이너' in selected_jobs %}checked{% endif %}><span>영상디자이너</span></label>
                         </div>
-                        <!-- 희망 근무지 -->
-                        <div class="tab-pane fade" id="content-location" role="tabpanel">
-                            <h4 class="mb-3">희망 근무지 <span class="text-danger">*</span></h4>
-                        <div class="job-container">
-                            <div class="job-categories">
-                                <ul>
-                                    <li class="active" data-category="seoul">서울</li>
-                                    <li data-category="busan">부산</li>
-                                    <li data-category="daegu">대구</li>
-                                    <li data-category="incheon">인천</li>
-                                    <li data-category="gwangju">광주</li>
-                                    <li data-category="daejeon">대전</li>
-                                    <li data-category="ulsan">울산</li>
-                                    <li data-category="sejong">세종</li>
-                                    <li data-category="gyeonggi">경기</li>
-                                    <li data-category="gangwon">강원</li>
-                                    <li data-category="chungbuk">충북</li>
-                                    <li data-category="chungnam">충남</li>
-                                    <li data-category="jeonbuk">전북</li>
-                                    <li data-category="jeonnam">전남</li>
-                                    <li data-category="gyeongbuk">경북</li>
-                                    <li data-category="gyeongnam">경남</li>
-                                    <li data-category="jeju">제주</li>
-                                </ul>
-                            </div>
-                            <div class="job-subcategories">
-                                <!-- 서울 -->
-                                <div class="subcategory-group active" data-category="seoul">
-                                    <label><input type="checkbox" name="location" value="서울전체" {% if '서울전체' in selected_locations %}checked{% endif %}> 서울 전체</label>
-                                    <label><input type="checkbox" name="location" value="강남구" {% if '강남구' in selected_locations %}checked{% endif %}> 강남구</label>
-                                    <label><input type="checkbox" name="location" value="강동구" {% if '강동구' in selected_locations %}checked{% endif %}> 강동구</label>
-                                    <label><input type="checkbox" name="location" value="강북구" {% if '강북구' in selected_locations %}checked{% endif %}> 강북구</label>
-                                    <label><input type="checkbox" name="location" value="강서구" {% if '강서구' in selected_locations %}checked{% endif %}> 강서구</label>
-                                    <label><input type="checkbox" name="location" value="관악구" {% if '관악구' in selected_locations %}checked{% endif %}> 관악구</label>
-                                    <label><input type="checkbox" name="location" value="광진구" {% if '광진구' in selected_locations %}checked{% endif %}> 광진구</label>
-                                    <label><input type="checkbox" name="location" value="구로구" {% if '구로구' in selected_locations %}checked{% endif %}> 구로구</label>
-                                    <label><input type="checkbox" name="location" value="금천구" {% if '금천구' in selected_locations %}checked{% endif %}> 금천구</label>
-                                    <label><input type="checkbox" name="location" value="노원구" {% if '노원구' in selected_locations %}checked{% endif %}> 노원구</label>
-                                    <label><input type="checkbox" name="location" value="도봉구" {% if '도봉구' in selected_locations %}checked{% endif %}> 도봉구</label>
-                                    <label><input type="checkbox" name="location" value="동대문구" {% if '동대문구' in selected_locations %}checked{% endif %}> 동대문구</label>
-                                    <label><input type="checkbox" name="location" value="동작구" {% if '동작구' in selected_locations %}checked{% endif %}> 동작구</label>
-                                    <label><input type="checkbox" name="location" value="마포구" {% if '마포구' in selected_locations %}checked{% endif %}> 마포구</label>
-                                    <label><input type="checkbox" name="location" value="서대문구" {% if '서대문구' in selected_locations %}checked{% endif %}> 서대문구</label>
-                                    <label><input type="checkbox" name="location" value="서초구" {% if '서초구' in selected_locations %}checked{% endif %}> 서초구</label>
-                                    <label><input type="checkbox" name="location" value="성동구" {% if '성동구' in selected_locations %}checked{% endif %}> 성동구</label>
-                                    <label><input type="checkbox" name="location" value="성북구" {% if '성북구' in selected_locations %}checked{% endif %}> 성북구</label>
-                                    <label><input type="checkbox" name="location" value="송파구" {% if '송파구' in selected_locations %}checked{% endif %}> 송파구</label>
-                                    <label><input type="checkbox" name="location" value="양천구" {% if '양천구' in selected_locations %}checked{% endif %}> 양천구</label>
-                                    <label><input type="checkbox" name="location" value="영등포구" {% if '영등포구' in selected_locations %}checked{% endif %}> 영등포구</label>
-                                    <label><input type="checkbox" name="location" value="용산구" {% if '용산구' in selected_locations %}checked{% endif %}> 용산구</label>
-                                    <label><input type="checkbox" name="location" value="은평구" {% if '은평구' in selected_locations %}checked{% endif %}> 은평구</label>
-                                    <label><input type="checkbox" name="location" value="종로구" {% if '종로구' in selected_locations %}checked{% endif %}> 종로구</label>
-                                    <label><input type="checkbox" name="location" value="중구" {% if '중구' in selected_locations %}checked{% endif %}> 중구</label>
-                                    <label><input type="checkbox" name="location" value="중랑구" {% if '중랑구' in selected_locations %}checked{% endif %}> 중랑구</label>
-                                </div>
-                                <!-- 부산 -->
-                                <div class="subcategory-group" data-category="busan">
-                                    <label><input type="checkbox" name="location" value="부산전체" {% if '부산전체' in selected_locations %}checked{% endif %}> 부산 전체</label>
-                                    <label><input type="checkbox" name="location" value="부산-강서구" {% if '부산-강서구' in selected_locations %}checked{% endif %}> 강서구</label>
-                                    <label><input type="checkbox" name="location" value="금정구" {% if '금정구' in selected_locations %}checked{% endif %}> 금정구</label>
-                                    <label><input type="checkbox" name="location" value="기장군" {% if '기장군' in selected_locations %}checked{% endif %}> 기장군</label>
-                                    <label><input type="checkbox" name="location" value="부산-남구" {% if '부산-남구' in selected_locations %}checked{% endif %}> 남구</label>
-                                    <label><input type="checkbox" name="location" value="부산-동구" {% if '부산-동구' in selected_locations %}checked{% endif %}> 동구</label>
-                                    <label><input type="checkbox" name="location" value="동래구" {% if '동래구' in selected_locations %}checked{% endif %}> 동래구</label>
-                                    <label><input type="checkbox" name="location" value="부산진구" {% if '부산진구' in selected_locations %}checked{% endif %}> 부산진구</label>
-                                    <label><input type="checkbox" name="location" value="부산-북구" {% if '부산-북구' in selected_locations %}checked{% endif %}> 북구</label>
-                                    <label><input type="checkbox" name="location" value="사상구" {% if '사상구' in selected_locations %}checked{% endif %}> 사상구</label>
-                                    <label><input type="checkbox" name="location" value="사하구" {% if '사하구' in selected_locations %}checked{% endif %}> 사하구</label>
-                                    <label><input type="checkbox" name="location" value="부산-서구" {% if '부산-서구' in selected_locations %}checked{% endif %}> 서구</label>
-                                    <label><input type="checkbox" name="location" value="수영구" {% if '수영구' in selected_locations %}checked{% endif %}> 수영구</label>
-                                    <label><input type="checkbox" name="location" value="연제구" {% if '연제구' in selected_locations %}checked{% endif %}> 연제구</label>
-                                    <label><input type="checkbox" name="location" value="영도구" {% if '영도구' in selected_locations %}checked{% endif %}> 영도구</label>
-                                    <label><input type="checkbox" name="location" value="부산-중구" {% if '부산-중구' in selected_locations %}checked{% endif %}> 중구</label>
-                                    <label><input type="checkbox" name="location" value="해운대구" {% if '해운대구' in selected_locations %}checked{% endif %}> 해운대구</label>
-                                </div>
-                                <!-- 대구 -->
-                                <div class="subcategory-group" data-category="daegu">
-                                    <label><input type="checkbox" name="location" value="대구전체" {% if '대구전체' in selected_locations %}checked{% endif %}> 대구 전체</label>
-                                    <label><input type="checkbox" name="location" value="대구-남구" {% if '대구-남구' in selected_locations %}checked{% endif %}> 남구</label>
-                                    <label><input type="checkbox" name="location" value="달서구" {% if '달서구' in selected_locations %}checked{% endif %}> 달서구</label>
-                                    <label><input type="checkbox" name="location" value="달성군" {% if '달성군' in selected_locations %}checked{% endif %}> 달성군</label>
-                                    <label><input type="checkbox" name="location" value="대구-동구" {% if '대구-동구' in selected_locations %}checked{% endif %}> 동구</label>
-                                    <label><input type="checkbox" name="location" value="대구-북구" {% if '대구-북구' in selected_locations %}checked{% endif %}> 북구</label>
-                                    <label><input type="checkbox" name="location" value="대구-서구" {% if '대구-서구' in selected_locations %}checked{% endif %}> 서구</label>
-                                    <label><input type="checkbox" name="location" value="수성구" {% if '수성구' in selected_locations %}checked{% endif %}> 수성구</label>
-                                    <label><input type="checkbox" name="location" value="대구-중구" {% if '대구-중구' in selected_locations %}checked{% endif %}> 중구</label>
-                                </div>
-                                <!-- 인천 -->
-                                <div class="subcategory-group" data-category="incheon">
-                                    <label><input type="checkbox" name="location" value="인천전체" {% if '인천전체' in selected_locations %}checked{% endif %}> 인천 전체</label>
-                                    <label><input type="checkbox" name="location" value="강화군" {% if '강화군' in selected_locations %}checked{% endif %}> 강화군</label>
-                                    <label><input type="checkbox" name="location" value="계양구" {% if '계양구' in selected_locations %}checked{% endif %}> 계양구</label>
-                                    <label><input type="checkbox" name="location" value="미추홀구" {% if '미추홀구' in selected_locations %}checked{% endif %}> 미추홀구</label>
-                                    <label><input type="checkbox" name="location" value="남동구" {% if '남동구' in selected_locations %}checked{% endif %}> 남동구</label>
-                                    <label><input type="checkbox" name="location" value="인천-동구" {% if '인천-동구' in selected_locations %}checked{% endif %}> 동구</label>
-                                    <label><input type="checkbox" name="location" value="부평구" {% if '부평구' in selected_locations %}checked{% endif %}> 부평구</label>
-                                    <label><input type="checkbox" name="location" value="인천-서구" {% if '인천-서구' in selected_locations %}checked{% endif %}> 서구</label>
-                                    <label><input type="checkbox" name="location" value="연수구" {% if '연수구' in selected_locations %}checked{% endif %}> 연수구</label>
-                                    <label><input type="checkbox" name="location" value="옹진군" {% if '옹진군' in selected_locations %}checked{% endif %}> 옹진군</label>
-                                    <label><input type="checkbox" name="location" value="인천-중구" {% if '인천-중구' in selected_locations %}checked{% endif %}> 중구</label>
-                                </div>
-                                <!-- 광주 -->
-                                <div class="subcategory-group" data-category="gwangju">
-                                    <label><input type="checkbox" name="location" value="광주전체" {% if '광주전체' in selected_locations %}checked{% endif %}> 광주 전체</label>
-                                    <label><input type="checkbox" name="location" value="광산구" {% if '광산구' in selected_locations %}checked{% endif %}> 광산구</label>
-                                    <label><input type="checkbox" name="location" value="광주-남구" {% if '광주-남구' in selected_locations %}checked{% endif %}> 남구</label>
-                                    <label><input type="checkbox" name="location" value="광주-동구" {% if '광주-동구' in selected_locations %}checked{% endif %}> 동구</label>
-                                    <label><input type="checkbox" name="location" value="광주-북구" {% if '광주-북구' in selected_locations %}checked{% endif %}> 북구</label>
-                                    <label><input type="checkbox" name="location" value="광주-서구" {% if '광주-서구' in selected_locations %}checked{% endif %}> 서구</label>
-                                </div>
-                                <!-- 대전 -->
-                                <div class="subcategory-group" data-category="daejeon">
-                                    <label><input type="checkbox" name="location" value="대전전체" {% if '대전전체' in selected_locations %}checked{% endif %}> 대전 전체</label>
-                                    <label><input type="checkbox" name="location" value="대덕구" {% if '대덕구' in selected_locations %}checked{% endif %}> 대덕구</label>
-                                    <label><input type="checkbox" name="location" value="대전-동구" {% if '대전-동구' in selected_locations %}checked{% endif %}> 동구</label>
-                                    <label><input type="checkbox" name="location" value="대전-서구" {% if '대전-서구' in selected_locations %}checked{% endif %}> 서구</label>
-                                    <label><input type="checkbox" name="location" value="유성구" {% if '유성구' in selected_locations %}checked{% endif %}> 유성구</label>
-                                    <label><input type="checkbox" name="location" value="대전-중구" {% if '대전-중구' in selected_locations %}checked{% endif %}> 중구</label>
-                                </div>
-                                <!-- 울산 -->
-                                <div class="subcategory-group" data-category="ulsan">
-                                    <label><input type="checkbox" name="location" value="울산전체" {% if '울산전체' in selected_locations %}checked{% endif %}> 울산 전체</label>
-                                    <label><input type="checkbox" name="location" value="울산-남구" {% if '울산-남구' in selected_locations %}checked{% endif %}> 남구</label>
-                                    <label><input type="checkbox" name="location" value="울산-동구" {% if '울산-동구' in selected_locations %}checked{% endif %}> 동구</label>
-                                    <label><input type="checkbox" name="location" value="울산-북구" {% if '울산-북구' in selected_locations %}checked{% endif %}> 북구</label>
-                                    <label><input type="checkbox" name="location" value="울주군" {% if '울주군' in selected_locations %}checked{% endif %}> 울주군</label>
-                                    <label><input type="checkbox" name="location" value="울산-중구" {% if '울산-중구' in selected_locations %}checked{% endif %}> 중구</label>
-                                </div>
-                                <!-- 세종 -->
-                                <div class="subcategory-group" data-category="sejong">
-                                    <label><input type="checkbox" name="location" value="세종전체" {% if '세종전체' in selected_locations %}checked{% endif %}> 세종 전체</label>
-                                </div>
-                                <!-- 경기 -->
-                                <div class="subcategory-group" data-category="gyeonggi">
-                                    <label><input type="checkbox" name="location" value="경기전체" {% if '경기전체' in selected_locations %}checked{% endif %}> 경기 전체</label>
-                                    <label><input type="checkbox" name="location" value="가평군" {% if '가평군' in selected_locations %}checked{% endif %}> 가평군</label>
-                                    <label><input type="checkbox" name="location" value="고양시" {% if '고양시' in selected_locations %}checked{% endif %}> 고양시</label>
-                                    <label><input type="checkbox" name="location" value="과천시" {% if '과천시' in selected_locations %}checked{% endif %}> 과천시</label>
-                                    <label><input type="checkbox" name="location" value="광명시" {% if '광명시' in selected_locations %}checked{% endif %}> 광명시</label>
-                                    <label><input type="checkbox" name="location" value="광주시" {% if '광주시' in selected_locations %}checked{% endif %}> 광주시</label>
-                                    <label><input type="checkbox" name="location" value="구리시" {% if '구리시' in selected_locations %}checked{% endif %}> 구리시</label>
-                                    <label><input type="checkbox" name="location" value="군포시" {% if '군포시' in selected_locations %}checked{% endif %}> 군포시</label>
-                                    <label><input type="checkbox" name="location" value="김포시" {% if '김포시' in selected_locations %}checked{% endif %}> 김포시</label>
-                                    <label><input type="checkbox" name="location" value="남양주시" {% if '남양주시' in selected_locations %}checked{% endif %}> 남양주시</label>
-                                    <label><input type="checkbox" name="location" value="동두천시" {% if '동두천시' in selected_locations %}checked{% endif %}> 동두천시</label>
-                                    <label><input type="checkbox" name="location" value="부천시" {% if '부천시' in selected_locations %}checked{% endif %}> 부천시</label>
-                                    <label><input type="checkbox" name="location" value="성남시" {% if '성남시' in selected_locations %}checked{% endif %}> 성남시</label>
-                                    <label><input type="checkbox" name="location" value="수원시" {% if '수원시' in selected_locations %}checked{% endif %}> 수원시</label>
-                                    <label><input type="checkbox" name="location" value="시흥시" {% if '시흥시' in selected_locations %}checked{% endif %}> 시흥시</label>
-                                    <label><input type="checkbox" name="location" value="안산시" {% if '안산시' in selected_locations %}checked{% endif %}> 안산시</label>
-                                    <label><input type="checkbox" name="location" value="안성시" {% if '안성시' in selected_locations %}checked{% endif %}> 안성시</label>
-                                    <label><input type="checkbox" name="location" value="안양시" {% if '안양시' in selected_locations %}checked{% endif %}> 안양시</label>
-                                    <label><input type="checkbox" name="location" value="양주시" {% if '양주시' in selected_locations %}checked{% endif %}> 양주시</label>
-                                    <label><input type="checkbox" name="location" value="양평군" {% if '양평군' in selected_locations %}checked{% endif %}> 양평군</label>
-                                    <label><input type="checkbox" name="location" value="여주시" {% if '여주시' in selected_locations %}checked{% endif %}> 여주시</label>
-                                    <label><input type="checkbox" name="location" value="연천군" {% if '연천군' in selected_locations %}checked{% endif %}> 연천군</label>
-                                    <label><input type="checkbox" name="location" value="오산시" {% if '오산시' in selected_locations %}checked{% endif %}> 오산시</label>
-                                    <label><input type="checkbox" name="location" value="용인시" {% if '용인시' in selected_locations %}checked{% endif %}> 용인시</label>
-                                    <label><input type="checkbox" name="location" value="의왕시" {% if '의왕시' in selected_locations %}checked{% endif %}> 의왕시</label>
-                                    <label><input type="checkbox" name="location" value="의정부시" {% if '의정부시' in selected_locations %}checked{% endif %}> 의정부시</label>
-                                    <label><input type="checkbox" name="location" value="이천시" {% if '이천시' in selected_locations %}checked{% endif %}> 이천시</label>
-                                    <label><input type="checkbox" name="location" value="파주시" {% if '파주시' in selected_locations %}checked{% endif %}> 파주시</label>
-                                    <label><input type="checkbox" name="location" value="평택시" {% if '평택시' in selected_locations %}checked{% endif %}> 평택시</label>
-                                    <label><input type="checkbox" name="location" value="포천시" {% if '포천시' in selected_locations %}checked{% endif %}> 포천시</label>
-                                    <label><input type="checkbox" name="location" value="하남시" {% if '하남시' in selected_locations %}checked{% endif %}> 하남시</label>
-                                    <label><input type="checkbox" name="location" value="화성시" {% if '화성시' in selected_locations %}checked{% endif %}> 화성시</label>
-                                </div>
-                                <!-- 강원 -->
-                                <div class="subcategory-group" data-category="gangwon">
-                                    <label><input type="checkbox" name="location" value="강원전체" {% if '강원전체' in selected_locations %}checked{% endif %}> 강원 전체</label>
-                                    <label><input type="checkbox" name="location" value="강릉시" {% if '강릉시' in selected_locations %}checked{% endif %}> 강릉시</label>
-                                    <label><input type="checkbox" name="location" value="동해시" {% if '동해시' in selected_locations %}checked{% endif %}> 동해시</label>
-                                    <label><input type="checkbox" name="location" value="삼척시" {% if '삼척시' in selected_locations %}checked{% endif %}> 삼척시</label>
-                                    <label><input type="checkbox" name="location" value="속초시" {% if '속초시' in selected_locations %}checked{% endif %}> 속초시</label>
-                                    <label><input type="checkbox" name="location" value="원주시" {% if '원주시' in selected_locations %}checked{% endif %}> 원주시</label>
-                                    <label><input type="checkbox" name="location" value="춘천시" {% if '춘천시' in selected_locations %}checked{% endif %}> 춘천시</label>
-                                    <label><input type="checkbox" name="location" value="태백시" {% if '태백시' in selected_locations %}checked{% endif %}> 태백시</label>
-                                </div>
-                                <!-- 충북 -->
-                                <div class="subcategory-group" data-category="chungbuk">
-                                    <label><input type="checkbox" name="location" value="충북전체" {% if '충북전체' in selected_locations %}checked{% endif %}> 충북 전체</label>
-                                    <label><input type="checkbox" name="location" value="제천시" {% if '제천시' in selected_locations %}checked{% endif %}> 제천시</label>
-                                    <label><input type="checkbox" name="location" value="청주시" {% if '청주시' in selected_locations %}checked{% endif %}> 청주시</label>
-                                    <label><input type="checkbox" name="location" value="충주시" {% if '충주시' in selected_locations %}checked{% endif %}> 충주시</label>
-                                </div>
-                                <!-- 충남 -->
-                                <div class="subcategory-group" data-category="chungnam">
-                                    <label><input type="checkbox" name="location" value="충남전체" {% if '충남전체' in selected_locations %}checked{% endif %}> 충남 전체</label>
-                                    <label><input type="checkbox" name="location" value="계룡시" {% if '계룡시' in selected_locations %}checked{% endif %}> 계룡시</label>
-                                    <label><input type="checkbox" name="location" value="공주시" {% if '공주시' in selected_locations %}checked{% endif %}> 공주시</label>
-                                    <label><input type="checkbox" name="location" value="논산시" {% if '논산시' in selected_locations %}checked{% endif %}> 논산시</label>
-                                    <label><input type="checkbox" name="location" value="당진시" {% if '당진시' in selected_locations %}checked{% endif %}> 당진시</label>
-                                    <label><input type="checkbox" name="location" value="보령시" {% if '보령시' in selected_locations %}checked{% endif %}> 보령시</label>
-                                    <label><input type="checkbox" name="location" value="서산시" {% if '서산시' in selected_locations %}checked{% endif %}> 서산시</label>
-                                    <label><input type="checkbox" name="location" value="아산시" {% if '아산시' in selected_locations %}checked{% endif %}> 아산시</label>
-                                    <label><input type="checkbox" name="location" value="천안시" {% if '천안시' in selected_locations %}checked{% endif %}> 천안시</label>
-                                </div>
-                                <!-- 전북 -->
-                                <div class="subcategory-group" data-category="jeonbuk">
-                                    <label><input type="checkbox" name="location" value="전북전체" {% if '전북전체' in selected_locations %}checked{% endif %}> 전북 전체</label>
-                                    <label><input type="checkbox" name="location" value="군산시" {% if '군산시' in selected_locations %}checked{% endif %}> 군산시</label>
-                                    <label><input type="checkbox" name="location" value="김제시" {% if '김제시' in selected_locations %}checked{% endif %}> 김제시</label>
-                                    <label><input type="checkbox" name="location" value="남원시" {% if '남원시' in selected_locations %}checked{% endif %}> 남원시</label>
-                                    <label><input type="checkbox" name="location" value="익산시" {% if '익산시' in selected_locations %}checked{% endif %}> 익산시</label>
-                                    <label><input type="checkbox" name="location" value="전주시" {% if '전주시' in selected_locations %}checked{% endif %}> 전주시</label>
-                                    <label><input type="checkbox" name="location" value="정읍시" {% if '정읍시' in selected_locations %}checked{% endif %}> 정읍시</label>
-                                </div>
-                                <!-- 전남 -->
-                                <div class="subcategory-group" data-category="jeonnam">
-                                    <label><input type="checkbox" name="location" value="전남전체" {% if '전남전체' in selected_locations %}checked{% endif %}> 전남 전체</label>
-                                    <label><input type="checkbox" name="location" value="광양시" {% if '광양시' in selected_locations %}checked{% endif %}> 광양시</label>
-                                    <label><input type="checkbox" name="location" value="나주시" {% if '나주시' in selected_locations %}checked{% endif %}> 나주시</label>
-                                    <label><input type="checkbox" name="location" value="목포시" {% if '목포시' in selected_locations %}checked{% endif %}> 목포시</label>
-                                    <label><input type="checkbox" name="location" value="순천시" {% if '순천시' in selected_locations %}checked{% endif %}> 순천시</label>
-                                    <label><input type="checkbox" name="location" value="여수시" {% if '여수시' in selected_locations %}checked{% endif %}> 여수시</label>
-                                </div>
-                                <!-- 경북 -->
-                                <div class="subcategory-group" data-category="gyeongbuk">
-                                    <label><input type="checkbox" name="location" value="경북전체" {% if '경북전체' in selected_locations %}checked{% endif %}> 경북 전체</label>
-                                    <label><input type="checkbox" name="location" value="경산시" {% if '경산시' in selected_locations %}checked{% endif %}> 경산시</label>
-                                    <label><input type="checkbox" name="location" value="경주시" {% if '경주시' in selected_locations %}checked{% endif %}> 경주시</label>
-                                    <label><input type="checkbox" name="location" value="구미시" {% if '구미시' in selected_locations %}checked{% endif %}> 구미시</label>
-                                    <label><input type="checkbox" name="location" value="김천시" {% if '김천시' in selected_locations %}checked{% endif %}> 김천시</label>
-                                    <label><input type="checkbox" name="location" value="문경시" {% if '문경시' in selected_locations %}checked{% endif %}> 문경시</label>
-                                    <label><input type="checkbox" name="location" value="상주시" {% if '상주시' in selected_locations %}checked{% endif %}> 상주시</label>
-                                    <label><input type="checkbox" name="location" value="안동시" {% if '안동시' in selected_locations %}checked{% endif %}> 안동시</label>
-                                    <label><input type="checkbox" name="location" value="영주시" {% if '영주시' in selected_locations %}checked{% endif %}> 영주시</label>
-                                    <label><input type="checkbox" name="location" value="영천시" {% if '영천시' in selected_locations %}checked{% endif %}> 영천시</label>
-                                    <label><input type="checkbox" name="location" value="포항시" {% if '포항시' in selected_locations %}checked{% endif %}> 포항시</label>
-                                </div>
-                                <!-- 경남 -->
-                                <div class="subcategory-group" data-category="gyeongnam">
-                                    <label><input type="checkbox" name="location" value="경남전체" {% if '경남전체' in selected_locations %}checked{% endif %}> 경남 전체</label>
-                                    <label><input type="checkbox" name="location" value="거제시" {% if '거제시' in selected_locations %}checked{% endif %}> 거제시</label>
-                                    <label><input type="checkbox" name="location" value="김해시" {% if '김해시' in selected_locations %}checked{% endif %}> 김해시</label>
-                                    <label><input type="checkbox" name="location" value="밀양시" {% if '밀양시' in selected_locations %}checked{% endif %}> 밀양시</label>
-                                    <label><input type="checkbox" name="location" value="사천시" {% if '사천시' in selected_locations %}checked{% endif %}> 사천시</label>
-                                    <label><input type="checkbox" name="location" value="양산시" {% if '양산시' in selected_locations %}checked{% endif %}> 양산시</label>
-                                    <label><input type="checkbox" name="location" value="진주시" {% if '진주시' in selected_locations %}checked{% endif %}> 진주시</label>
-                                    <label><input type="checkbox" name="location" value="창원시" {% if '창원시' in selected_locations %}checked{% endif %}> 창원시</label>
-                                    <label><input type="checkbox" name="location" value="통영시" {% if '통영시' in selected_locations %}checked{% endif %}> 통영시</label>
-                                </div>
-                                <!-- 제주 -->
-                                <div class="subcategory-group" data-category="jeju">
-                                    <label><input type="checkbox" name="location" value="제주전체" {% if '제주전체' in selected_locations %}checked{% endif %}> 제주 전체</label>
-                                    <label><input type="checkbox" name="location" value="서귀포시" {% if '서귀포시' in selected_locations %}checked{% endif %}> 서귀포시</label>
-                                    <label><input type="checkbox" name="location" value="제주시" {% if '제주시' in selected_locations %}checked{% endif %}> 제주시</label>
-                                </div>
-                            </div>
+                        <div class="subcategory-group" data-category="sales">
+                            <label><input type="checkbox" name="job" value="국내영업" {% if '국내영업' in selected_jobs %}checked{% endif %}><span>국내영업</span></label>
+                            <label><input type="checkbox" name="job" value="해외영업" {% if '해외영업' in selected_jobs %}checked{% endif %}><span>해외영업</span></label>
+                            <label><input type="checkbox" name="job" value="무역사무" {% if '무역사무' in selected_jobs %}checked{% endif %}><span>무역사무</span></label>
+                            <label><input type="checkbox" name="job" value="영업기획" {% if '영업기획' in selected_jobs %}checked{% endif %}><span>영업기획</span></label>
                         </div>
+                        <div class="subcategory-group" data-category="cs">
+                            <label><input type="checkbox" name="job" value="고객센터" {% if '고객센터' in selected_jobs %}checked{% endif %}><span>고객센터</span></label>
+                            <label><input type="checkbox" name="job" value="텔레마케터" {% if '텔레마케터' in selected_jobs %}checked{% endif %}><span>텔레마케터</span></label>
+                            <label><input type="checkbox" name="job" value="CS매니저" {% if 'CS매니저' in selected_jobs %}checked{% endif %}><span>CS매니저</span></label>
                         </div>
-                        <!-- 보유 기술-->
-                        <div class="tab-pane fade" id="content-skills" role="tabpanel">
-                            <h4 class="mb-3">보유 기술</h4>
-                            <p class="text-muted">기술명을 입력하고 Enter를 누르거나, 아래 추천 스킬을 클릭하여 추가하세요.</p>
-                            {{ form.skills }}
+                        <div class="subcategory-group" data-category="purchase">
+                            <label><input type="checkbox" name="job" value="구매" {% if '구매' in selected_jobs %}checked{% endif %}><span>구매</span></label>
+                            <label><input type="checkbox" name="job" value="자재관리" {% if '자재관리' in selected_jobs %}checked{% endif %}><span>자재관리</span></label>
+                            <label><input type="checkbox" name="job" value="물류" {% if '물류' in selected_jobs %}checked{% endif %}><span>물류</span></label>
+                        </div>
+                        <div class="subcategory-group" data-category="md">
+                            <label><input type="checkbox" name="job" value="상품기획" {% if '상품기획' in selected_jobs %}checked{% endif %}><span>상품기획</span></label>
+                            <label><input type="checkbox" name="job" value="MD" {% if 'MD' in selected_jobs %}checked{% endif %}><span>MD</span></label>
+                            <label><input type="checkbox" name="job" value="VMD" {% if 'VMD' in selected_jobs %}checked{% endif %}><span>VMD</span></label>
                         </div>
                     </div>
                 </div>
             </div>
-            <!-- 저장 버튼 -->
-            <div class="text-center mt-4">
-                <button type="submit" class="btn btn-primary btn-lg">
-                    {% if is_edit_mode %}이력서 수정하기{% else %}이력서 저장하기{% endif %}
-                </button>
+
+
+                    <!-- 희망 근무지 -->
+            <div class="tab-pane fade" id="content-location" role="tabpanel">
+                <h4>희망 근무지 <span class="text-danger">*</span></h4>
+                <div class="job-container">
+                    <div class="job-categories">
+                        <button type="button" class="job-category-btn active" data-category="seoul">서울</button>
+                        <button type="button" class="job-category-btn" data-category="busan">부산</button>
+                        <button type="button" class="job-category-btn" data-category="daegu">대구</button>
+                        <button type="button" class="job-category-btn" data-category="incheon">인천</button>
+                        <button type="button" class="job-category-btn" data-category="gwangju">광주</button>
+                        <button type="button" class="job-category-btn" data-category="daejeon">대전</button>
+                        <button type="button" class="job-category-btn" data-category="ulsan">울산</button>
+                        <button type="button" class="job-category-btn" data-category="sejong">세종</button>
+                        <button type="button" class="job-category-btn" data-category="gyeonggi">경기</button>
+                        <button type="button" class="job-category-btn" data-category="gangwon">강원</button>
+                        <button type="button" class="job-category-btn" data-category="chungbuk">충북</button>
+                        <button type="button" class="job-category-btn" data-category="chungnam">충남</button>
+                        <button type="button" class="job-category-btn" data-category="jeonbuk">전북</button>
+                        <button type="button" class="job-category-btn" data-category="jeonnam">전남</button>
+                        <button type="button" class="job-category-btn" data-category="gyeongbuk">경북</button>
+                        <button type="button" class="job-category-btn" data-category="gyeongnam">경남</button>
+                        <button type="button" class="job-category-btn" data-category="jeju">제주</button>
+                    </div>
+                    <div class="job-subcategories">
+                        <!-- 서울 -->
+                        <div class="subcategory-group active" data-category="seoul">
+                            <label><input type="checkbox" name="location" value="서울전체" {% if '서울전체' in selected_locations %}checked{% endif %}><span>서울 전체</span></label>
+                            <label><input type="checkbox" name="location" value="강남구" {% if '강남구' in selected_locations %}checked{% endif %}><span>강남구</span></label>
+                            <label><input type="checkbox" name="location" value="강동구" {% if '강동구' in selected_locations %}checked{% endif %}><span>강동구</span></label>
+                            <label><input type="checkbox" name="location" value="강북구" {% if '강북구' in selected_locations %}checked{% endif %}><span>강북구</span></label>
+                            <label><input type="checkbox" name="location" value="강서구" {% if '강서구' in selected_locations %}checked{% endif %}><span>강서구</span></label>
+                            <label><input type="checkbox" name="location" value="관악구" {% if '관악구' in selected_locations %}checked{% endif %}><span>관악구</span></label>
+                            <label><input type="checkbox" name="location" value="광진구" {% if '광진구' in selected_locations %}checked{% endif %}><span>광진구</span></label>
+                            <label><input type="checkbox" name="location" value="구로구" {% if '구로구' in selected_locations %}checked{% endif %}><span>구로구</span></label>
+                            <label><input type="checkbox" name="location" value="금천구" {% if '금천구' in selected_locations %}checked{% endif %}><span>금천구</span></label>
+                            <label><input type="checkbox" name="location" value="노원구" {% if '노원구' in selected_locations %}checked{% endif %}><span>노원구</span></label>
+                            <label><input type="checkbox" name="location" value="도봉구" {% if '도봉구' in selected_locations %}checked{% endif %}><span>도봉구</span></label>
+                            <label><input type="checkbox" name="location" value="동대문구" {% if '동대문구' in selected_locations %}checked{% endif %}><span>동대문구</span></label>
+                            <label><input type="checkbox" name="location" value="동작구" {% if '동작구' in selected_locations %}checked{% endif %}><span>동작구</span></label>
+                            <label><input type="checkbox" name="location" value="마포구" {% if '마포구' in selected_locations %}checked{% endif %}><span>마포구</span></label>
+                            <label><input type="checkbox" name="location" value="서대문구" {% if '서대문구' in selected_locations %}checked{% endif %}><span>서대문구</span></label>
+                            <label><input type="checkbox" name="location" value="서초구" {% if '서초구' in selected_locations %}checked{% endif %}><span>서초구</span></label>
+                            <label><input type="checkbox" name="location" value="성동구" {% if '성동구' in selected_locations %}checked{% endif %}><span>성동구</span></label>
+                            <label><input type="checkbox" name="location" value="성북구" {% if '성북구' in selected_locations %}checked{% endif %}><span>성북구</span></label>
+                            <label><input type="checkbox" name="location" value="송파구" {% if '송파구' in selected_locations %}checked{% endif %}><span>송파구</span></label>
+                            <label><input type="checkbox" name="location" value="양천구" {% if '양천구' in selected_locations %}checked{% endif %}><span>양천구</span></label>
+                            <label><input type="checkbox" name="location" value="영등포구" {% if '영등포구' in selected_locations %}checked{% endif %}><span>영등포구</span></label>
+                            <label><input type="checkbox" name="location" value="용산구" {% if '용산구' in selected_locations %}checked{% endif %}><span>용산구</span></label>
+                            <label><input type="checkbox" name="location" value="은평구" {% if '은평구' in selected_locations %}checked{% endif %}><span>은평구</span></label>
+                            <label><input type="checkbox" name="location" value="종로구" {% if '종로구' in selected_locations %}checked{% endif %}><span>종로구</span></label>
+                            <label><input type="checkbox" name="location" value="중구" {% if '중구' in selected_locations %}checked{% endif %}><span>중구</span></label>
+                            <label><input type="checkbox" name="location" value="중랑구" {% if '중랑구' in selected_locations %}checked{% endif %}><span>중랑구</span></label>
+                        </div>
+                        <!-- 부산 -->
+                        <div class="subcategory-group" data-category="busan">
+                            <label><input type="checkbox" name="location" value="부산전체" {% if '부산전체' in selected_locations %}checked{% endif %}><span>부산 전체</span></label>
+                            <label><input type="checkbox" name="location" value="부산-강서구" {% if '부산-강서구' in selected_locations %}checked{% endif %}><span>강서구</span></label>
+                            <label><input type="checkbox" name="location" value="금정구" {% if '금정구' in selected_locations %}checked{% endif %}><span>금정구</span></label>
+                            <label><input type="checkbox" name="location" value="기장군" {% if '기장군' in selected_locations %}checked{% endif %}><span>기장군</span></label>
+                            <label><input type="checkbox" name="location" value="부산-남구" {% if '부산-남구' in selected_locations %}checked{% endif %}><span>남구</span></label>
+                            <label><input type="checkbox" name="location" value="부산-동구" {% if '부산-동구' in selected_locations %}checked{% endif %}><span>동구</span></label>
+                            <label><input type="checkbox" name="location" value="동래구" {% if '동래구' in selected_locations %}checked{% endif %}><span>동래구</span></label>
+                            <label><input type="checkbox" name="location" value="부산진구" {% if '부산진구' in selected_locations %}checked{% endif %}><span>부산진구</span></label>
+                            <label><input type="checkbox" name="location" value="부산-북구" {% if '부산-북구' in selected_locations %}checked{% endif %}><span>북구</span></label>
+                            <label><input type="checkbox" name="location" value="사상구" {% if '사상구' in selected_locations %}checked{% endif %}><span>사상구</span></label>
+                            <label><input type="checkbox" name="location" value="사하구" {% if '사하구' in selected_locations %}checked{% endif %}><span>사하구</span></label>
+                            <label><input type="checkbox" name="location" value="부산-서구" {% if '부산-서구' in selected_locations %}checked{% endif %}><span>서구</span></label>
+                            <label><input type="checkbox" name="location" value="수영구" {% if '수영구' in selected_locations %}checked{% endif %}><span>수영구</span></label>
+                            <label><input type="checkbox" name="location" value="연제구" {% if '연제구' in selected_locations %}checked{% endif %}><span>연제구</span></label>
+                            <label><input type="checkbox" name="location" value="영도구" {% if '영도구' in selected_locations %}checked{% endif %}><span>영도구</span></label>
+                            <label><input type="checkbox" name="location" value="부산-중구" {% if '부산-중구' in selected_locations %}checked{% endif %}><span>중구</span></label>
+                            <label><input type="checkbox" name="location" value="해운대구" {% if '해운대구' in selected_locations %}checked{% endif %}><span>해운대구</span></label>
+                        </div>
+                        <!-- 대구 -->
+                        <div class="subcategory-group" data-category="daegu">
+                            <label><input type="checkbox" name="location" value="대구전체" {% if '대구전체' in selected_locations %}checked{% endif %}><span>대구 전체</span></label>
+                            <label><input type="checkbox" name="location" value="대구-남구" {% if '대구-남구' in selected_locations %}checked{% endif %}><span>남구</span></label>
+                            <label><input type="checkbox" name="location" value="달서구" {% if '달서구' in selected_locations %}checked{% endif %}><span>달서구</span></label>
+                            <label><input type="checkbox" name="location" value="달성군" {% if '달성군' in selected_locations %}checked{% endif %}><span>달성군</span></label>
+                            <label><input type="checkbox" name="location" value="대구-동구" {% if '대구-동구' in selected_locations %}checked{% endif %}><span>동구</span></label>
+                            <label><input type="checkbox" name="location" value="대구-북구" {% if '대구-북구' in selected_locations %}checked{% endif %}><span>북구</span></label>
+                            <label><input type="checkbox" name="location" value="대구-서구" {% if '대구-서구' in selected_locations %}checked{% endif %}><span>서구</span></label>
+                            <label><input type="checkbox" name="location" value="수성구" {% if '수성구' in selected_locations %}checked{% endif %}><span>수성구</span></label>
+                            <label><input type="checkbox" name="location" value="대구-중구" {% if '대구-중구' in selected_locations %}checked{% endif %}><span>중구</span></label>
+                        </div>
+                        <!-- 인천 -->
+                        <div class="subcategory-group" data-category="incheon">
+                            <label><input type="checkbox" name="location" value="인천전체" {% if '인천전체' in selected_locations %}checked{% endif %}><span>인천 전체</span></label>
+                            <label><input type="checkbox" name="location" value="강화군" {% if '강화군' in selected_locations %}checked{% endif %}><span>강화군</span></label>
+                            <label><input type="checkbox" name="location" value="계양구" {% if '계양구' in selected_locations %}checked{% endif %}><span>계양구</span></label>
+                            <label><input type="checkbox" name="location" value="미추홀구" {% if '미추홀구' in selected_locations %}checked{% endif %}><span>미추홀구</span></label>
+                            <label><input type="checkbox" name="location" value="남동구" {% if '남동구' in selected_locations %}checked{% endif %}><span>남동구</span></label>
+                            <label><input type="checkbox" name="location" value="인천-동구" {% if '인천-동구' in selected_locations %}checked{% endif %}><span>동구</span></label>
+                            <label><input type="checkbox" name="location" value="부평구" {% if '부평구' in selected_locations %}checked{% endif %}><span>부평구</span></label>
+                            <label><input type="checkbox" name="location" value="인천-서구" {% if '인천-서구' in selected_locations %}checked{% endif %}><span>서구</span></label>
+                            <label><input type="checkbox" name="location" value="연수구" {% if '연수구' in selected_locations %}checked{% endif %}><span>연수구</span></label>
+                            <label><input type="checkbox" name="location" value="옹진군" {% if '옹진군' in selected_locations %}checked{% endif %}><span>옹진군</span></label>
+                            <label><input type="checkbox" name="location" value="인천-중구" {% if '인천-중구' in selected_locations %}checked{% endif %}><span>중구</span></label>
+                        </div>
+                        <!-- 광주 -->
+                        <div class="subcategory-group" data-category="gwangju">
+                            <label><input type="checkbox" name="location" value="광주전체" {% if '광주전체' in selected_locations %}checked{% endif %}><span>광주 전체</span></label>
+                            <label><input type="checkbox" name="location" value="광산구" {% if '광산구' in selected_locations %}checked{% endif %}><span>광산구</span></label>
+                            <label><input type="checkbox" name="location" value="광주-남구" {% if '광주-남구' in selected_locations %}checked{% endif %}><span>남구</span></label>
+                            <label><input type="checkbox" name="location" value="광주-동구" {% if '광주-동구' in selected_locations %}checked{% endif %}><span>동구</span></label>
+                            <label><input type="checkbox" name="location" value="광주-북구" {% if '광주-북구' in selected_locations %}checked{% endif %}><span>북구</span></label>
+                            <label><input type="checkbox" name="location" value="광주-서구" {% if '광주-서구' in selected_locations %}checked{% endif %}><span>서구</span></label>
+                        </div>
+                        <!-- 대전 -->
+                        <div class="subcategory-group" data-category="daejeon">
+                            <label><input type="checkbox" name="location" value="대전전체" {% if '대전전체' in selected_locations %}checked{% endif %}><span>대전 전체</span></label>
+                            <label><input type="checkbox" name="location" value="대덕구" {% if '대덕구' in selected_locations %}checked{% endif %}><span>대덕구</span></label>
+                            <label><input type="checkbox" name="location" value="대전-동구" {% if '대전-동구' in selected_locations %}checked{% endif %}><span>동구</span></label>
+                            <label><input type="checkbox" name="location" value="대전-서구" {% if '대전-서구' in selected_locations %}checked{% endif %}><span>서구</span></label>
+                            <label><input type="checkbox" name="location" value="유성구" {% if '유성구' in selected_locations %}checked{% endif %}><span>유성구</span></label>
+                            <label><input type="checkbox" name="location" value="대전-중구" {% if '대전-중구' in selected_locations %}checked{% endif %}><span>중구</span></label>
+                        </div>
+                        <!-- 울산 -->
+                        <div class="subcategory-group" data-category="ulsan">
+                            <label><input type="checkbox" name="location" value="울산전체" {% if '울산전체' in selected_locations %}checked{% endif %}><span>울산 전체</span></label>
+                            <label><input type="checkbox" name="location" value="울산-남구" {% if '울산-남구' in selected_locations %}checked{% endif %}><span>남구</span></label>
+                            <label><input type="checkbox" name="location" value="울산-동구" {% if '울산-동구' in selected_locations %}checked{% endif %}><span>동구</span></label>
+                            <label><input type="checkbox" name="location" value="울산-북구" {% if '울산-북구' in selected_locations %}checked{% endif %}><span>북구</span></label>
+                            <label><input type="checkbox" name="location" value="울주군" {% if '울주군' in selected_locations %}checked{% endif %}><span>울주군</span></label>
+                            <label><input type="checkbox" name="location" value="울산-중구" {% if '울산-중구' in selected_locations %}checked{% endif %}><span>중구</span></label>
+                        </div>
+                        <!-- 세종 -->
+                        <div class="subcategory-group" data-category="sejong">
+                            <label><input type="checkbox" name="location" value="세종전체" {% if '세종전체' in selected_locations %}checked{% endif %}><span>세종 전체</span></label>
+                        </div>
+                        <!-- 경기 -->
+                        <div class="subcategory-group" data-category="gyeonggi">
+                            <label><input type="checkbox" name="location" value="경기전체" {% if '경기전체' in selected_locations %}checked{% endif %}><span>경기 전체</span></label>
+                            <label><input type="checkbox" name="location" value="가평군" {% if '가평군' in selected_locations %}checked{% endif %}><span>가평군</span></label>
+                            <label><input type="checkbox" name="location" value="고양시" {% if '고양시' in selected_locations %}checked{% endif %}><span>고양시</span></label>
+                            <label><input type="checkbox" name="location" value="과천시" {% if '과천시' in selected_locations %}checked{% endif %}><span>과천시</span></label>
+                            <label><input type="checkbox" name="location" value="광명시" {% if '광명시' in selected_locations %}checked{% endif %}><span>광명시</span></label>
+                            <label><input type="checkbox" name="location" value="광주시" {% if '광주시' in selected_locations %}checked{% endif %}><span>광주시</span></label>
+                            <label><input type="checkbox" name="location" value="구리시" {% if '구리시' in selected_locations %}checked{% endif %}><span>구리시</span></label>
+                            <label><input type="checkbox" name="location" value="군포시" {% if '군포시' in selected_locations %}checked{% endif %}><span>군포시</span></label>
+                            <label><input type="checkbox" name="location" value="김포시" {% if '김포시' in selected_locations %}checked{% endif %}><span>김포시</span></label>
+                            <label><input type="checkbox" name="location" value="남양주시" {% if '남양주시' in selected_locations %}checked{% endif %}><span>남양주시</span></label>
+                            <label><input type="checkbox" name="location" value="동두천시" {% if '동두천시' in selected_locations %}checked{% endif %}><span>동두천시</span></label>
+                            <label><input type="checkbox" name="location" value="부천시" {% if '부천시' in selected_locations %}checked{% endif %}><span>부천시</span></label>
+                            <label><input type="checkbox" name="location" value="성남시" {% if '성남시' in selected_locations %}checked{% endif %}><span>성남시</span></label>
+                            <label><input type="checkbox" name="location" value="수원시" {% if '수원시' in selected_locations %}checked{% endif %}><span>수원시</span></label>
+                            <label><input type="checkbox" name="location" value="시흥시" {% if '시흥시' in selected_locations %}checked{% endif %}><span>시흥시</span></label>
+                            <label><input type="checkbox" name="location" value="안산시" {% if '안산시' in selected_locations %}checked{% endif %}><span>안산시</span></label>
+                            <label><input type="checkbox" name="location" value="안성시" {% if '안성시' in selected_locations %}checked{% endif %}><span>안성시</span></label>
+                            <label><input type="checkbox" name="location" value="안양시" {% if '안양시' in selected_locations %}checked{% endif %}><span>안양시</span></label>
+                            <label><input type="checkbox" name="location" value="양주시" {% if '양주시' in selected_locations %}checked{% endif %}><span>양주시</span></label>
+                            <label><input type="checkbox" name="location" value="양평군" {% if '양평군' in selected_locations %}checked{% endif %}><span>양평군</span></label>
+                            <label><input type="checkbox" name="location" value="여주시" {% if '여주시' in selected_locations %}checked{% endif %}><span>여주시</span></label>
+                            <label><input type="checkbox" name="location" value="연천군" {% if '연천군' in selected_locations %}checked{% endif %}><span>연천군</span></label>
+                            <label><input type="checkbox" name="location" value="오산시" {% if '오산시' in selected_locations %}checked{% endif %}><span>오산시</span></label>
+                            <label><input type="checkbox" name="location" value="용인시" {% if '용인시' in selected_locations %}checked{% endif %}><span>용인시</span></label>
+                            <label><input type="checkbox" name="location" value="의왕시" {% if '의왕시' in selected_locations %}checked{% endif %}><span>의왕시</span></label>
+                            <label><input type="checkbox" name="location" value="의정부시" {% if '의정부시' in selected_locations %}checked{% endif %}><span>의정부시</span></label>
+                            <label><input type="checkbox" name="location" value="이천시" {% if '이천시' in selected_locations %}checked{% endif %}><span>이천시</span></label>
+                            <label><input type="checkbox" name="location" value="파주시" {% if '파주시' in selected_locations %}checked{% endif %}><span>파주시</span></label>
+                            <label><input type="checkbox" name="location" value="평택시" {% if '평택시' in selected_locations %}checked{% endif %}><span>평택시</span></label>
+                            <label><input type="checkbox" name="location" value="포천시" {% if '포천시' in selected_locations %}checked{% endif %}><span>포천시</span></label>
+                            <label><input type="checkbox" name="location" value="하남시" {% if '하남시' in selected_locations %}checked{% endif %}><span>하남시</span></label>
+                            <label><input type="checkbox" name="location" value="화성시" {% if '화성시' in selected_locations %}checked{% endif %}><span>화성시</span></label>
+                        </div>
+                        <!-- 강원 -->
+                        <div class="subcategory-group" data-category="gangwon">
+                            <label><input type="checkbox" name="location" value="강원전체" {% if '강원전체' in selected_locations %}checked{% endif %}><span>강원 전체</span></label>
+                            <label><input type="checkbox" name="location" value="강릉시" {% if '강릉시' in selected_locations %}checked{% endif %}><span>강릉시</span></label>
+                            <label><input type="checkbox" name="location" value="동해시" {% if '동해시' in selected_locations %}checked{% endif %}><span>동해시</span></label>
+                            <label><input type="checkbox" name="location" value="삼척시" {% if '삼척시' in selected_locations %}checked{% endif %}><span>삼척시</span></label>
+                            <label><input type="checkbox" name="location" value="속초시" {% if '속초시' in selected_locations %}checked{% endif %}><span>속초시</span></label>
+                            <label><input type="checkbox" name="location" value="원주시" {% if '원주시' in selected_locations %}checked{% endif %}><span>원주시</span></label>
+                            <label><input type="checkbox" name="location" value="춘천시" {% if '춘천시' in selected_locations %}checked{% endif %}><span>춘천시</span></label>
+                            <label><input type="checkbox" name="location" value="태백시" {% if '태백시' in selected_locations %}checked{% endif %}><span>태백시</span></label>
+                        </div>
+                        <!-- 충북 -->
+                        <div class="subcategory-group" data-category="chungbuk">
+                            <label><input type="checkbox" name="location" value="충북전체" {% if '충북전체' in selected_locations %}checked{% endif %}><span>충북 전체</span></label>
+                            <label><input type="checkbox" name="location" value="제천시" {% if '제천시' in selected_locations %}checked{% endif %}><span>제천시</span></label>
+                            <label><input type="checkbox" name="location" value="청주시" {% if '청주시' in selected_locations %}checked{% endif %}><span>청주시</span></label>
+                            <label><input type="checkbox" name="location" value="충주시" {% if '충주시' in selected_locations %}checked{% endif %}><span>충주시</span></label>
+                        </div>
+                        <!-- 충남 -->
+                        <div class="subcategory-group" data-category="chungnam">
+                            <label><input type="checkbox" name="location" value="충남전체" {% if '충남전체' in selected_locations %}checked{% endif %}><span>충남 전체</span></label>
+                            <label><input type="checkbox" name="location" value="계룡시" {% if '계룡시' in selected_locations %}checked{% endif %}><span>계룡시</span></label>
+                            <label><input type="checkbox" name="location" value="공주시" {% if '공주시' in selected_locations %}checked{% endif %}><span>공주시</span></label>
+                            <label><input type="checkbox" name="location" value="논산시" {% if '논산시' in selected_locations %}checked{% endif %}><span>논산시</span></label>
+                            <label><input type="checkbox" name="location" value="당진시" {% if '당진시' in selected_locations %}checked{% endif %}><span>당진시</span></label>
+                            <label><input type="checkbox" name="location" value="보령시" {% if '보령시' in selected_locations %}checked{% endif %}><span>보령시</span></label>
+                            <label><input type="checkbox" name="location" value="서산시" {% if '서산시' in selected_locations %}checked{% endif %}><span>서산시</span></label>
+                            <label><input type="checkbox" name="location" value="아산시" {% if '아산시' in selected_locations %}checked{% endif %}><span>아산시</span></label>
+                            <label><input type="checkbox" name="location" value="천안시" {% if '천안시' in selected_locations %}checked{% endif %}><span>천안시</span></label>
+                        </div>
+                        <!-- 전북 -->
+                        <div class="subcategory-group" data-category="jeonbuk">
+                            <label><input type="checkbox" name="location" value="전북전체" {% if '전북전체' in selected_locations %}checked{% endif %}><span>전북 전체</span></label>
+                            <label><input type="checkbox" name="location" value="군산시" {% if '군산시' in selected_locations %}checked{% endif %}><span>군산시</span></label>
+                            <label><input type="checkbox" name="location" value="김제시" {% if '김제시' in selected_locations %}checked{% endif %}><span>김제시</span></label>
+                            <label><input type="checkbox" name="location" value="남원시" {% if '남원시' in selected_locations %}checked{% endif %}><span>남원시</span></label>
+                            <label><input type="checkbox" name="location" value="익산시" {% if '익산시' in selected_locations %}checked{% endif %}><span>익산시</span></label>
+                            <label><input type="checkbox" name="location" value="전주시" {% if '전주시' in selected_locations %}checked{% endif %}><span>전주시</span></label>
+                            <label><input type="checkbox" name="location" value="정읍시" {% if '정읍시' in selected_locations %}checked{% endif %}><span>정읍시</span></label>
+                        </div>
+                        <!-- 전남 -->
+                        <div class="subcategory-group" data-category="jeonnam">
+                            <label><input type="checkbox" name="location" value="전남전체" {% if '전남전체' in selected_locations %}checked{% endif %}><span>전남 전체</span></label>
+                            <label><input type="checkbox" name="location" value="광양시" {% if '광양시' in selected_locations %}checked{% endif %}><span>광양시</span></label>
+                            <label><input type="checkbox" name="location" value="나주시" {% if '나주시' in selected_locations %}checked{% endif %}><span>나주시</span></label>
+                            <label><input type="checkbox" name="location" value="목포시" {% if '목포시' in selected_locations %}checked{% endif %}><span>목포시</span></label>
+                            <label><input type="checkbox" name="location" value="순천시" {% if '순천시' in selected_locations %}checked{% endif %}><span>순천시</span></label>
+                            <label><input type="checkbox" name="location" value="여수시" {% if '여수시' in selected_locations %}checked{% endif %}><span>여수시</span></label>
+                        </div>
+                        <!-- 경북 -->
+                        <div class="subcategory-group" data-category="gyeongbuk">
+                            <label><input type="checkbox" name="location" value="경북전체" {% if '경북전체' in selected_locations %}checked{% endif %}><span>경북 전체</span></label>
+                            <label><input type="checkbox" name="location" value="경산시" {% if '경산시' in selected_locations %}checked{% endif %}><span>경산시</span></label>
+                            <label><input type="checkbox" name="location" value="경주시" {% if '경주시' in selected_locations %}checked{% endif %}><span>경주시</span></label>
+                            <label><input type="checkbox" name="location" value="구미시" {% if '구미시' in selected_locations %}checked{% endif %}><span>구미시</span></label>
+                            <label><input type="checkbox" name="location" value="김천시" {% if '김천시' in selected_locations %}checked{% endif %}><span>김천시</span></label>
+                            <label><input type="checkbox" name="location" value="문경시" {% if '문경시' in selected_locations %}checked{% endif %}><span>문경시</span></label>
+                            <label><input type="checkbox" name="location" value="상주시" {% if '상주시' in selected_locations %}checked{% endif %}><span>상주시</span></label>
+                            <label><input type="checkbox" name="location" value="안동시" {% if '안동시' in selected_locations %}checked{% endif %}><span>안동시</span></label>
+                            <label><input type="checkbox" name="location" value="영주시" {% if '영주시' in selected_locations %}checked{% endif %}><span>영주시</span></label>
+                            <label><input type="checkbox" name="location" value="영천시" {% if '영천시' in selected_locations %}checked{% endif %}><span>영천시</span></label>
+                            <label><input type="checkbox" name="location" value="포항시" {% if '포항시' in selected_locations %}checked{% endif %}><span>포항시</span></label>
+                        </div>
+                        <!-- 경남 -->
+                        <div class="subcategory-group" data-category="gyeongnam">
+                            <label><input type="checkbox" name="location" value="경남전체" {% if '경남전체' in selected_locations %}checked{% endif %}><span>경남 전체</span></label>
+                            <label><input type="checkbox" name="location" value="거제시" {% if '거제시' in selected_locations %}checked{% endif %}><span>거제시</span></label>
+                            <label><input type="checkbox" name="location" value="김해시" {% if '김해시' in selected_locations %}checked{% endif %}><span>김해시</span></label>
+                            <label><input type="checkbox" name="location" value="밀양시" {% if '밀양시' in selected_locations %}checked{% endif %}><span>밀양시</span></label>
+                            <label><input type="checkbox" name="location" value="사천시" {% if '사천시' in selected_locations %}checked{% endif %}><span>사천시</span></label>
+                            <label><input type="checkbox" name="location" value="양산시" {% if '양산시' in selected_locations %}checked{% endif %}><span>양산시</span></label>
+                            <label><input type="checkbox" name="location" value="진주시" {% if '진주시' in selected_locations %}checked{% endif %}><span>진주시</span></label>
+                            <label><input type="checkbox" name="location" value="창원시" {% if '창원시' in selected_locations %}checked{% endif %}><span>창원시</span></label>
+                            <label><input type="checkbox" name="location" value="통영시" {% if '통영시' in selected_locations %}checked{% endif %}><span>통영시</span></label>
+                        </div>
+                        <!-- 제주 -->
+                        <div class="subcategory-group" data-category="jeju">
+                            <label><input type="checkbox" name="location" value="제주전체" {% if '제주전체' in selected_locations %}checked{% endif %}><span>제주 전체</span></label>
+                            <label><input type="checkbox" name="location" value="서귀포시" {% if '서귀포시' in selected_locations %}checked{% endif %}><span>서귀포시</span></label>
+                            <label><input type="checkbox" name="location" value="제주시" {% if '제주시' in selected_locations %}checked{% endif %}><span>제주시</span></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                <div class="submit-container">
+                    <button type="submit" class="submit-btn">
+                        {% if is_edit_mode %}수정 완료{% else %}이력서 저장하기{% endif %}
+                    </button>
+                </div>
             </div>
         </div>
     </form>
 
     <script>
-          // 1. 희망 직무/근무지 탭 전환 로직 (이것은 그대로 유지)
-        document.querySelectorAll('.job-container').forEach(container => {
-            const categoryItems = container.querySelectorAll(".job-categories li");
-            categoryItems.forEach(item => {
-                item.addEventListener("click", (e) => {
-                    const currentContainer = e.target.closest('.job-container');
-                    const subcategoryGroups = currentContainer.querySelectorAll(".subcategory-group");
-                    currentContainer.querySelectorAll('.job-categories li').forEach(i => i.classList.remove("active"));
-                    subcategoryGroups.forEach(g => g.classList.remove("active"));
-                    item.classList.add("active");
-                    const category = item.getAttribute("data-category");
-                    currentContainer.querySelector(`.subcategory-group[data-category="${category}"]`).classList.add("active");
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // --- 1. 희망 직무/근무지 탭 전환 로직 ---
+            document.querySelectorAll('.job-container').forEach(container => {
+                const categoryButtons = container.querySelectorAll(".job-categories .job-category-btn");
+
+                // ▼▼▼ 변수명을 categoryButtons로 수정하고, 로직을 더 명확하게 변경 ▼▼▼
+                categoryButtons.forEach(button => {
+                    button.addEventListener("click", function (event) {
+                        const clickedButton = event.currentTarget;
+                        const currentContainer = clickedButton.closest('.job-container');
+                        if (!currentContainer) return;
+
+                        const subcategoryGroups = currentContainer.querySelectorAll(".subcategory-group");
+
+                        // 모든 카테고리 버튼에서 'active' 클래스를 제거합니다.
+                        currentContainer.querySelectorAll('.job-category-btn').forEach(btn => btn.classList.remove("active"));
+                        
+                        // 모든 서브카테고리 그룹을 숨깁니다.
+                        subcategoryGroups.forEach(g => g.classList.remove("active"));
+                        
+                        // '지금 클릭된' 버튼에만 'active' 클래스를 추가합니다.
+                        clickedButton.classList.add("active");
+                        
+                        // 해당 카테고리의 서브 그룹을 찾아서 보여줍니다.
+                        const category = clickedButton.getAttribute("data-category");
+                        const targetGroup = currentContainer.querySelector(`.subcategory-group[data-category="${category}"]`);
+                        if (targetGroup) {
+                            targetGroup.classList.add("active");
+                        }
+                    });
                 });
             });
-        });
 
-        // 2. '보유 기술' 탭 버튼 요소를 선택합니다.
-        const skillsTabButton = document.querySelector('button[data-bs-target="#content-skills"]');
-        let tagifyInstance = null; // Tagify가 한 번만 실행되도록 상태를 저장할 변수
+            // --- 2. 보유 기술(Tagify) 초기화 로직 ---
+            const skillsTabButton = document.querySelector('button[data-bs-target="#content-skills"]');
+            let tagifyInstance = null;
 
-        // 3. 탭 버튼에 'shown.bs.tab' 이벤트 리스너를 추가합니다.
-        //    이 이벤트는 Bootstrap 탭이 '화면에 완전히 표시된 후'에 딱 한 번 발생합니다.
-        skillsTabButton.addEventListener('shown.bs.tab', function (event) {
-            
-            // 4. Tagify가 아직 초기화되지 않았다면 (즉, 사용자가 탭을 처음 클릭했다면)
-            if (!tagifyInstance) {
-                console.log("보유 기술 탭이 활성화되어 Tagify를 초기화합니다.");
-
-                // --- 이 안의 로직은 이전에 작성하신 코드와 동일합니다. ---
-                var groupedSkills = {{ skills_whitelist|safe }};
-
-                var whitelistForTagify = [];
-                for (const groupName in groupedSkills) {
-                    const translatedGroupName = {
-                        "languages": "프로그래밍 언어", "frontend": "프론트엔드", "backend": "백엔드",
-                        "mobile": "모바일", "database": "데이터베이스", "cloud_devops": "클라우드/DevOps",
-                        "tools": "협업 툴", "design": "디자인", "ml_ai": "머신러닝/AI",
-                        "data_analysis": "데이터 분석", "business_skills": "비즈니스/기획",
-                        "marketing": "마케팅", "soft_skills": "소프트 스킬"
-                    }[groupName] || groupName;
-
-                    groupedSkills[groupName].forEach(skill => {
-                        whitelistForTagify.push({ group: translatedGroupName, value: skill });
-                    });
-                }
-                
-                var input = document.querySelector('#id_skills');
-
-                // Tagify 인스턴스를 생성하고, 나중에 참조할 수 있도록 변수에 저장합니다.
-                tagifyInstance = new Tagify(input, {
-                    whitelist: whitelistForTagify,
-                    templates: {
-                        dropdownHeader(items) {
-                            const grouped = items.reduce((acc, item) => {
-                                const group = item.group || '기타';
-                                if (!acc[group]) acc[group] = [item];
-                                else acc[group].push(item);
-                                return acc;
-                            }, {});
-                            return Object.entries(grouped).map(([group, items]) =>
-                                `<div class='tagify__dropdown__header'><strong>${group}</strong><span>(${items.length}개)</span></div>`
-                            ).join('');
+            if (skillsTabButton) {
+                skillsTabButton.addEventListener('shown.bs.tab', function (event) {
+                    if (!tagifyInstance) {
+                        console.log("보유 기술 탭이 활성화되어 Tagify를 초기화합니다.");
+                        try {
+                            var groupedSkills = {{ skills_whitelist|safe }};
+                            var whitelistForTagify = [];
+                            for (const groupName in groupedSkills) {
+                                const translatedGroupName = {
+                                    "languages": "프로그래밍 언어", "frontend": "프론트엔드", "backend": "백엔드",
+                                    "mobile": "모바일", "database": "데이터베이스", "cloud_devops": "클라우드/DevOps",
+                                    "tools": "협업 툴", "design": "디자인", "ml_ai": "머신러닝/AI",
+                                    "data_analysis": "데이터 분석", "business_skills": "비즈니스/기획",
+                                    "marketing": "마케팅", "soft_skills": "소프트 스킬"
+                                }[groupName] || groupName;
+                                groupedSkills[groupName].forEach(skill => {
+                                    whitelistForTagify.push({ group: translatedGroupName, value: skill });
+                                });
+                            }
+                            var input = document.querySelector('#id_skills');
+                            if (input) {
+                                tagifyInstance = new Tagify(input, {
+                                    whitelist: whitelistForTagify,
+                                    templates: {
+                                        dropdownHeader(items) {
+                                            const grouped = items.reduce((acc, item) => {
+                                                const group = item.group || '기타';
+                                                if (!acc[group]) acc[group] = [item];
+                                                else acc[group].push(item);
+                                                return acc;
+                                            }, {});
+                                            return Object.entries(grouped).map(([group, items]) =>
+                                                `<div class='tagify__dropdown__header'><strong>${group}</strong><span>(${items.length}개)</span></div>`
+                                            ).join('');
+                                        }
+                                    },
+                                    dropdown: { maxItems: 40, enabled: 0, closeOnSelect: false, closeOnScroll: false }
+                                });
+                            }
+                        } catch (e) {
+                            console.error("Tagify 초기화 중 오류 발생:", e);
                         }
-                    },
-                    dropdown: {
-                        maxItems: 40,
-                        enabled: 0,
-                        closeOnSelect: false,
-                        closeOnScroll: false 
+                    }
+                });
+            }
+
+            // --- 3. 폼 제출 시 제목 유효성 검사 로직 ---
+            const mainForm = document.querySelector('form');
+            const titleInput = document.getElementById('id_title');
+
+            if (mainForm && titleInput) {
+                mainForm.addEventListener('submit', function (event) {
+                    if (titleInput.value.trim() === '') {
+                        event.preventDefault();
+                        alert('이력서 제목을 입력해주세요.');
+                        titleInput.focus();
+                        titleInput.classList.add('is-invalid');
+                    }
+                });
+                titleInput.addEventListener('input', function () {
+                    if (this.classList.contains('is-invalid')) {
+                        this.classList.remove('is-invalid');
                     }
                 });
             }
         });
     </script>
 </body>
+
 </html>

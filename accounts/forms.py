@@ -9,7 +9,8 @@ class ResumeForm(forms.ModelForm):
             'title', 
             'education_level', 'university', 'major', 'gpa', 
             'experience_years', # 'work_experience' 대신 'experience_years' 추가
-            'job', 'location', 'skills'
+            'job', 'location', 'skills',
+            'experience', 'certifications'
         ]
         
         # 2. 위젯 설정도 새로운 필드에 맞게 수정합니다.
@@ -32,4 +33,14 @@ class ResumeForm(forms.ModelForm):
             }),
             'job': forms.HiddenInput(),
             'location': forms.HiddenInput(),
+            'experience': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 10, 
+                'placeholder': '대외활동, 인턴, 프로젝트, 교육 이수 내용 등을 자유롭게 기재해주세요.\n\n예시)\n\n[프로젝트]\n- 개인 포트폴리오 웹사이트 개발 (2024.01 ~ 2024.03)\n  - 주요 기술: Python, Django, JavaScript'
+            }),
+            'certifications': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 8,
+                'placeholder': '취득한 자격증, 수상 내역, 어학 능력 등을 자유롭게 기재해주세요.\n\n예시)\n\n[자격증]\n- 정보처리기사 (2023.05)\n\n[어학]\n- 영어 (비즈니스 회화 가능, TOEIC 950점)'
+            }),
         }

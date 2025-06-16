@@ -36,6 +36,9 @@ class Resume(models.Model):
 
     skills = models.TextField(blank=True, verbose_name="보유 기술")
 
+    experience = models.TextField(blank=True, verbose_name="경험/활동/교육")
+    certifications = models.TextField(blank=True, verbose_name="수상/자격증/어학") 
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
