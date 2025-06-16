@@ -4,7 +4,7 @@ from langchain_teddynote.graphs import visualize_graph
 from Run_Pipeline.Document_Loader import DocumentLoader
 from Run_Pipeline.Document_Splitter import DocumentSplitter
 from Run_Pipeline.Embedding_DB import EmbeddingDB
-from Run_Pipeline.Retiever_Builder import RetrieverBuilder
+from Run_Pipeline.Retriever_Builder import RetrieverBuilder
 from State import *
 from Env_Loader import EnvLoader
 from pathlib import Path
@@ -37,7 +37,7 @@ embed_db = EmbeddingDB(model_name="nlpai-lab/KURE-v1", device=device,
 db = embed_db.get_or_create_db(chunks)
 
 # ⑥ 리트리버 빌드
-retriever_builder = RetrieverBuilder(db=db, docs=chunks, k=k, mode=retriever_mode)  # 리트리버 빌더 생성
+retriever_builder = RetrieverBuilder(db=db, chunks=chunks, k=k, mode=retriever_mode)  # 리트리버 빌더 생성
 retriever = retriever_builder.build()
 
 workflow = StateGraph(GraphState)

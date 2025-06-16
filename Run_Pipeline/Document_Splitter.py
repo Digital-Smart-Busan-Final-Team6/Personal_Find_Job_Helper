@@ -22,6 +22,7 @@ class DocumentSplitter:
 
     def split(self, docs: List[Document], cache_dir: str) -> List[Document]:
         cache_dir = Path(cache_dir)
+
         cache_file = cache_dir / f"{self.chunk_size}_{self.overlap}_docs_chunk"
 
         # 캐시 존재 시 로드
