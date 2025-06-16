@@ -71,57 +71,80 @@
     <div class="content-area">
         <div class="page-prompt">이력 사항을 바탕으로 다음 공고들을 추천 드립니다</div>
         
-        <form action="#" method="post">
-            {% csrf_token %}
+        <!-- ▼▼▼ 1. 공고 목록은 폼 바깥으로 이동 ▼▼▼ -->
+        <div id="job-list-container">
             {% for job in recommended_jobs %}
             <div class="job-card" data-job-id="{{ job.id }}">
                 <div class="job-info">
                     <h5>{{ job.company }} - {{ job.title }}</h5>
-                    <p>{{ job.location }}</p>
+                    <p>{{ job.location|default:"정보 없음" }}</p>
                 </div>
-                <input type="checkbox" class="job-checkbox" name="selected_jobs" value="{{ job.id }}">
+                <!-- 체크박스는 시각적 요소로만 사용 -->
+                <input type="checkbox" class="job-checkbox" value="{{ job.id }}">
             </div>
             {% endfor %}
+        </div>
 
-            <div class="report-fab-container">
-                <button type="submit" class="generate-btn" id="final-report-btn" disabled>
+        <!-- ▼▼▼ 2. 최종 제출을 위한 별도의 폼 생성 ▼▼▼ -->
+        <div class="report-fab-container">
+            <form action="{% url 'generate_final_report' %}" method="post" id="final-report-form">
+                {% csrf_token %}
+                <!-- (A) 이력서 ID를 여기에 포함 -->
+                <input type="hidden" name="resume_ids" value="{{ resume_ids_str }}">
+                
+                <!-- (B) JavaScript가 선택된 공고 ID를 여기에 추가할 영역 -->
+                <div id="selected-jobs-hidden-inputs"></div>
+
+                <button type="submit" class="generate-btn" id="generate-report-btn" disabled>
                     매칭 리포트를 생성할 공고를 선택해주세요
                 </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
+    <!-- ▼▼▼ 3. 스크립트 전체 수정 ▼▼▼ -->
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', function() {
         const jobCards = document.querySelectorAll('.job-card');
-        const finalReportBtn = document.getElementById('final-report-btn');
+        const submitButton = document.getElementById('generate-report-btn');
+        const selectedJobsContainer = document.getElementById('selected-jobs-hidden-inputs');
 
-        function updateButtonState() {
-            const checkedCount = document.querySelectorAll('.job-checkbox:checked').length;
-            finalReportBtn.disabled = (checkedCount === 0);
-            if(checkedCount > 0) {
-                finalReportBtn.textContent = `이력-공고 매칭 리포트 생성하기`;
-            } else {
-                finalReportBtn.textContent = '매칭 리포트를 생성할 공고를 선택해주세요';
-            }
-        }
-
-        // ★★★★★ 선택 로직 수정 ★★★★★
         jobCards.forEach(card => {
-            // 각 카드에 클릭 이벤트 리스너를 추가합니다.
-            card.addEventListener('click', () => {
-                const checkbox = card.querySelector('.job-checkbox');
-
-                // 1. 체크박스의 상태를 반전시킵니다.
+            card.addEventListener('click', function() {
+                // 카드 클릭 시 selected 클래스 토글
+                this.classList.toggle('selected');
+                
+                // 카드 안의 체크박스 상태도 함께 토글
+                const checkbox = this.querySelector('.job-checkbox');
                 checkbox.checked = !checkbox.checked;
 
-                // 2. 카드의 'selected' 클래스를 체크박스 상태에 따라 추가/제거합니다.
-                card.classList.toggle('selected', checkbox.checked);
-
-                // 3. 하단 버튼의 상태를 업데이트합니다.
-                updateButtonState();
+                // 폼 상태 업데이트 함수 호출
+                updateFormState();
             });
         });
+
+        function updateFormState() {
+            const selectedCards = document.querySelectorAll('.job-card.selected');
+            
+            // 버튼 활성화/비활성화 및 텍스트 변경
+            if (selectedCards.length > 0) {
+                submitButton.disabled = false;
+                submitButton.textContent = `${selectedCards.length}개 공고로 리포트 생성하기`;
+            } else {
+                submitButton.disabled = true;
+                submitButton.textContent = '매칭 리포트를 생성할 공고를 선택해주세요';
+            }
+            
+            // 숨겨진 input 필드 업데이트
+            selectedJobsContainer.innerHTML = ''; // 기존 내용 초기화
+            selectedCards.forEach(card => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'selected_jobs';
+                hiddenInput.value = card.dataset.jobId; // data-job-id 속성에서 값 가져오기
+                selectedJobsContainer.appendChild(hiddenInput);
+            });
+        }
     });
     </script>
 </body>

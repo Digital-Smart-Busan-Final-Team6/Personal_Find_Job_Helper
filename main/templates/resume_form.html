@@ -7,7 +7,10 @@
     <title>{% if is_edit_mode %}이력서 수정{% else %}이력서 추가{% endif %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- 기존 CSS 파일이 있다면 연결 -->
+    <!-- skills에 쓸 Tagify 라이브러리 추가 -->
+    <link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
     <!-- <link rel="stylesheet" href="{% static 'css/style.css' %}"> --> 
     <style>
         /* 이전에 제공해주신 mypage.html의 스타일을 그대로 가져왔습니다. */
@@ -64,6 +67,19 @@
         .subcategory-group.active { display: flex; flex-wrap: wrap; gap: 12px; align-content: flex-start; }
         .subcategory-group label { display: inline-flex; align-items: center; padding: 8px 12px; gap: 8px; border-radius: 8px; background-color: #f1f4ff; border: 1px solid #c3d4ff; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap; user-select: none; }
         .subcategory-group input[type="checkbox"] { width: 18px; height: 18px; margin: 0; flex-shrink: 0; }
+
+        .tagify {
+            --tag-bg: #e9f0ff;
+            --tag-hover: #d0dfff;
+            --tag-text-color: #3b57c1;
+            --tag-remove-btn-color: #3b57c1;
+            border: 1px solid #ced4da; /* Bootstrap의 기본 테두리 색상 */
+            border-radius: .375rem; /* Bootstrap의 기본 테두리 둥글기 */
+        }
+        .tagify--focus {
+            border-color: #86b7fe; /* Bootstrap의 focus 테두리 색상 */
+            box-shadow: 0 0 0 .25rem rgba(13,110,253,.25);
+        }
     </style>
 </head>
 <body>
@@ -86,7 +102,7 @@
                 <!-- 왼쪽 메뉴 -->
                 <div class="col-md-3 sidebar">
                     <div class="nav flex-column nav-pills" id="v-tabs" role="tablist" aria-orientation="vertical">
-                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#content-education" type="button">학력</button>
+                        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#content-education" type="button">학력/경력</button>
                         <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-job" type="button">희망 직무</button>
                         <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-location" type="button">희망 근무지</button>
                         <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-skills" type="button">보유 기술</button>
@@ -100,13 +116,30 @@
                         <div class="tab-pane fade show active" id="content-education" role="tabpanel">
                             <h4 class="mb-3">학력</h4>
                             <div class="row mb-3">
-                                <div class="col-md-6"><label class="form-label">대학명</label>{{ form.university }}</div>
-                                <div class="col-md-6"><label class="form-label">전공</label>{{ form.major }}</div>
+                                <div class="col-md-6">
+                                    <label class="form-label">최종 학력</label>
+                                    {{ form.education_level }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">학교명</label>
+                                    {{ form.university }}
+                                </div>
                             </div>
                             <div class="row mb-3">
-                                <div class="col-md-4"><label class="form-label">학적상태</label>{{ form.education_status }}</div>
-                                <div class="col-md-4"><label class="form-label">학점</label>{{ form.gpa }}</div>
-                                <div class="col-md-4"><label class="form-label">졸업상태</label>{{ form.graduation_status }}</div>
+                                <!-- ▼▼▼ 한 줄에 3개의 필드를 배치하도록 col-md-4로 수정합니다. ▼▼▼ -->
+                                <div class="col-md-4">
+                                    <label class="form-label">전공</label>
+                                    {{ form.major }}
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">학점</label>
+                                    {{ form.gpa }}
+                                </div>
+                                <div class="col-md-4">
+                                    <!-- ▼▼▼ '경력(년)' 필드를 여기에 추가합니다. ▼▼▼ -->
+                                    <label class="form-label">경력(년)</label>
+                                    {{ form.experience_years }}
+                                </div>
                             </div>
                         </div>
 
@@ -425,6 +458,7 @@
                         <!-- 보유 기술-->
                         <div class="tab-pane fade" id="content-skills" role="tabpanel">
                             <h4 class="mb-3">보유 기술</h4>
+                            <p class="text-muted">기술명을 입력하고 Enter를 누르거나, 아래 추천 스킬을 클릭하여 추가하세요.</p>
                             {{ form.skills }}
                         </div>
                     </div>
@@ -440,6 +474,7 @@
     </form>
 
     <script>
+          // 1. 희망 직무/근무지 탭 전환 로직 (이것은 그대로 유지)
         document.querySelectorAll('.job-container').forEach(container => {
             const categoryItems = container.querySelectorAll(".job-categories li");
             categoryItems.forEach(item => {
@@ -453,6 +488,64 @@
                     currentContainer.querySelector(`.subcategory-group[data-category="${category}"]`).classList.add("active");
                 });
             });
+        });
+
+        // 2. '보유 기술' 탭 버튼 요소를 선택합니다.
+        const skillsTabButton = document.querySelector('button[data-bs-target="#content-skills"]');
+        let tagifyInstance = null; // Tagify가 한 번만 실행되도록 상태를 저장할 변수
+
+        // 3. 탭 버튼에 'shown.bs.tab' 이벤트 리스너를 추가합니다.
+        //    이 이벤트는 Bootstrap 탭이 '화면에 완전히 표시된 후'에 딱 한 번 발생합니다.
+        skillsTabButton.addEventListener('shown.bs.tab', function (event) {
+            
+            // 4. Tagify가 아직 초기화되지 않았다면 (즉, 사용자가 탭을 처음 클릭했다면)
+            if (!tagifyInstance) {
+                console.log("보유 기술 탭이 활성화되어 Tagify를 초기화합니다.");
+
+                // --- 이 안의 로직은 이전에 작성하신 코드와 동일합니다. ---
+                var groupedSkills = {{ skills_whitelist|safe }};
+
+                var whitelistForTagify = [];
+                for (const groupName in groupedSkills) {
+                    const translatedGroupName = {
+                        "languages": "프로그래밍 언어", "frontend": "프론트엔드", "backend": "백엔드",
+                        "mobile": "모바일", "database": "데이터베이스", "cloud_devops": "클라우드/DevOps",
+                        "tools": "협업 툴", "design": "디자인", "ml_ai": "머신러닝/AI",
+                        "data_analysis": "데이터 분석", "business_skills": "비즈니스/기획",
+                        "marketing": "마케팅", "soft_skills": "소프트 스킬"
+                    }[groupName] || groupName;
+
+                    groupedSkills[groupName].forEach(skill => {
+                        whitelistForTagify.push({ group: translatedGroupName, value: skill });
+                    });
+                }
+                
+                var input = document.querySelector('#id_skills');
+
+                // Tagify 인스턴스를 생성하고, 나중에 참조할 수 있도록 변수에 저장합니다.
+                tagifyInstance = new Tagify(input, {
+                    whitelist: whitelistForTagify,
+                    templates: {
+                        dropdownHeader(items) {
+                            const grouped = items.reduce((acc, item) => {
+                                const group = item.group || '기타';
+                                if (!acc[group]) acc[group] = [item];
+                                else acc[group].push(item);
+                                return acc;
+                            }, {});
+                            return Object.entries(grouped).map(([group, items]) =>
+                                `<div class='tagify__dropdown__header'><strong>${group}</strong><span>(${items.length}개)</span></div>`
+                            ).join('');
+                        }
+                    },
+                    dropdown: {
+                        maxItems: 40,
+                        enabled: 0,
+                        closeOnSelect: false,
+                        closeOnScroll: false 
+                    }
+                });
+            }
         });
     </script>
 </body>

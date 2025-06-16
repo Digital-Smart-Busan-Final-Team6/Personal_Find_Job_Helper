@@ -4,7 +4,7 @@ from langchain_teddynote.graphs import visualize_graph
 from Run_Pipeline.Document_Loader import DocumentLoader
 from Run_Pipeline.Document_Splitter import DocumentSplitter
 from Run_Pipeline.Embedding_DB import EmbeddingDB
-from Run_Pipeline.Retiever_Builder import RetrieverBuilder
+from Run_Pipeline.Retriever_Builder import RetrieverBuilder
 from State import *
 from Env_Loader import EnvLoader
 from pathlib import Path

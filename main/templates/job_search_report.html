@@ -105,6 +105,42 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
+        .job-results-container {
+            width: 100%;
+            margin-top: 40px;
+        }
+        .job-card {
+            background-color: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .job-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+        }
+        .final-report-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .final-report-btn:disabled {
+            background-color: #adb5bd;
+            cursor: not-allowed;
+        }
+        .final-report-btn:not(:disabled):hover {
+            background-color: #000066;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="resume-page">
@@ -121,18 +157,79 @@
 
         <h3 class="search-prompt">매칭을 하고 싶은 공고를 알려주세요</h3>
 
-        <form action="#" method="get" class="search-form">
+        <!-- ▼▼▼ 1. 검색 폼 수정 ▼▼▼ -->
+        <form action="" method="get" class="search-form">
             <input type="hidden" name="resumes" value="{{ resume_ids_str }}">
             
-            <input type="text" name="query" class="search-input" placeholder="공고명을 입력해 주세요" required>
+            <input type="text" name="query" class="search-input" placeholder="공고명을 입력해 주세요" value="{{ search_query|default:'' }}" required>
             <button type="submit" class="search-button">
                 <i class="fas fa-search"></i>
             </button>
         </form>
 
+        <!-- ▼▼▼ 2. 검색 결과 표시 영역 추가 ▼▼▼ -->
+        <div class="job-results-container">
+            {% if search_query and not search_results %}
+                <p class="text-center text-muted mt-4">"{{ search_query }}"에 대한 검색 결과가 없습니다.</p>
+            {% elif search_results %}
+                {% for job in search_results %}
+                <div class="job-card d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="mb-0 fw-bold">{{ job.company }} - {{ job.title }}</p>
+                        <small class="text-muted">{{ job.location }}</small>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input job-checkbox" type="checkbox" role="switch" value="{{ job.id }}" id="job-check-{{ job.id }}">
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+
+        <!-- ▼▼▼ 3. 최종 리포트 생성 폼 및 버튼 그룹 수정 ▼▼▼ -->
         <div class="button-group">
-            <a href="{% url 'resume_list' %}" class="cancel-btn">취소</a>
+            <form action="{% url 'generate_final_report' %}" method="post" id="final-report-form" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="resume_ids" value="{{ resume_ids_str }}">
+                <div id="selected-jobs-hidden-inputs"></div>
+                <button type="submit" class="final-report-btn" disabled>공고를 선택해 주세요</button>
+            </form>
+            <a href="{% url 'resume_list' %}" class="cancel-btn ms-2">취소</a>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitButton = document.querySelector('.final-report-btn');
+            const selectedJobsContainer = document.getElementById('selected-jobs-hidden-inputs');
+            const checkboxes = document.querySelectorAll('.job-checkbox');
+    
+            function updateFormState() {
+                const checkedBoxes = document.querySelectorAll('.job-checkbox:checked');
+                
+                if (checkedBoxes.length > 0) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = `${checkedBoxes.length}개 공고로 리포트 생성`;
+                } else {
+                    submitButton.disabled = true;
+                    submitButton.textContent = '공고를 선택해 주세요';
+                }
+                
+                selectedJobsContainer.innerHTML = '';
+                checkedBoxes.forEach(checkbox => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'selected_jobs';
+                    hiddenInput.value = checkbox.value;
+                    selectedJobsContainer.appendChild(hiddenInput);
+                });
+            }
+    
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateFormState);
+            });
+        });
+        </script>
 </body>
 </html>

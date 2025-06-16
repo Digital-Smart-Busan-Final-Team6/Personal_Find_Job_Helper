@@ -5,12 +5,13 @@ import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 
 from accounts.models import Resume
 from accounts.forms import ResumeForm
 
 # Agent 관련 import (실제 구현 시 주석 해제)
-from Run_Pipeline.Agent_Factory import get_agent_chain
+from Run_Pipeline.Agent_Manager import get_agent_chain
 from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
 
 
@@ -33,6 +34,21 @@ def resume_list_view(request):
     }
     return render(request, 'resume_list.html', context)
 
+def load_skills_whitelist():
+    """JSON 파일에서 스킬 목록을 읽어오는 도우미 함수"""
+    # 파일 경로만 새로운 JSON 파일로 변경될 수 있습니다.
+    file_path = settings.BASE_DIR / 'Data_Files' / 'skills_dataset.json'
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        # 파일이 없을 경우를 대비한 예외 처리
+        print(f"경고: 스킬 데이터 파일({file_path})을 찾을 수 없습니다.")
+        return "{}" # 빈 JSON 객체 반환
+    except Exception as e:
+        # 그 외 다른 오류 발생 시
+        print(f"오류: 스킬 데이터 파일 처리 중 문제 발생 - {e}")
+        return "{}"
 
 # --- [View 3] 새 이력서를 '추가'하는 페이지 (Create) ---
 def resume_add_view(request):
@@ -55,6 +71,7 @@ def resume_add_view(request):
         'selected_jobs': [],
         'selected_locations': [],
         'is_edit_mode': False,
+        'skills_whitelist': load_skills_whitelist()
     }
     return render(request, 'resume_form.html', context)
 
@@ -82,6 +99,7 @@ def resume_edit_view(request, resume_id):
         'selected_jobs': resume.job.split(',') if resume.job else [],
         'selected_locations': resume.location.split(',') if resume.location else [],
         'is_edit_mode': True,
+        'skills_whitelist': load_skills_whitelist()
     }
     return render(request, 'resume_form.html', context)
 
@@ -105,9 +123,9 @@ def export_resumes_to_json(request):
             'title': resume.title,
             'university': resume.university,
             'major': resume.major,
-            'education_status': resume.education_status,
+            'education_level': resume.education_level,
             'gpa': resume.gpa,
-            'graduation_status': resume.graduation_status,
+            'experience_years': resume.experience_years,
             'job_interests': resume.job.split(',') if resume.job else [],
             'location_interests': resume.location.split(',') if resume.location else [],
             'skills': resume.skills,
@@ -120,6 +138,7 @@ def export_resumes_to_json(request):
 
 # --- [View 7] 공고 검색 리포트 페이지 ---
 def job_search_report_page(request):
+    # --- 기본 정보 로드 ---
     resume_ids_str = request.GET.get('resumes', '')
     if not resume_ids_str:
         return redirect('resume_list')
@@ -127,9 +146,59 @@ def job_search_report_page(request):
     resume_ids = resume_ids_str.split(',')
     selected_resumes = Resume.objects.filter(id__in=resume_ids)
 
+    # --- 검색어 처리 및 Agent 호출 ---
+    search_query = request.GET.get('query', '').strip() # 폼에서 보낸 검색어 가져오기
+    search_results = [] # 검색 결과를 담을 리스트
+
+    # 검색어가 있을 경우에만 Agent를 호출합니다.
+    if search_query:
+        # Agent가 따라야 할 작업 계획을 담은 쿼리 생성
+        query_for_agent = f"""
+        [작업 목표]
+        사용자가 입력한 검색어 "{search_query}" 와 가장 관련성 높은 채용 공고를 찾아서 JSON 형식으로 반환해야 합니다.
+
+        [작업 절차]
+        1. `document_search` 툴을 사용하여 위 검색어로 관련 공고를 검색하세요.
+        2. 찾은 결과를 아래 [결과 형식]에 맞는 JSON 리스트로만 응답해야 합니다. 다른 설명은 절대 추가하지 마세요.
+
+        [결과 형식]
+        ```json
+        [
+          {{"id": "고유 ID", "company": "회사명", "title": "공고 제목", "location": "근무지"}},
+          {{"id": "고유 ID", "company": "회사명", "title": "공고 제목", "location": "근무지"}}
+        ]
+        ```
+        """
+        
+        # Agent 호출 및 결과 파싱
+        try:
+            agent = get_agent_chain()
+            if not request.session.session_key:
+                request.session.create()
+            session_id = request.session.session_key
+
+            print(f'Agent 공고 검색 시작 (검색어: "{search_query}")...')
+            result = agent.invoke(
+                {"input": query_for_agent},
+                config={"configurable": {"session_id": session_id}}
+            )
+            
+            agent_output = result.get('output', '')
+            if "```json" in agent_output:
+                agent_output = agent_output.split("```json")[1].split("```")[0].strip()
+            
+            search_results = json.loads(agent_output)
+
+        except Exception as e:
+            print(f"Agent 공고 검색 중 오류 발생: {e}")
+            search_results = []
+
+    # --- 템플릿에 전달할 최종 context ---
     context = {
         'selected_resumes': selected_resumes,
         'resume_ids_str': resume_ids_str,
+        'search_query': search_query, # 사용자가 입력한 검색어를 다시 템플릿으로 전달
+        'search_results': search_results, # Agent가 찾은 검색 결과를 전달
         'current_page': 'resume',
         'switch_url_name': 'home',
     }
@@ -202,91 +271,65 @@ def chat_api(request):
 # --- [View 9] 추천 로딩 페이지 뷰 ---
 def recommend_recommending_view(request):
     """
-    이력서 선택 후 추천을 시작하면 보여지는 로딩 페이지.
-    Agent를 호출하여 결과를 생성하고 결과 페이지로 리디렉션합니다.
+    사용자의 요청을 받아, Agent가 스스로 이력서를 파악하고 공고를 추천하도록
+    '작업 계획'이 담긴 단일 쿼리를 생성하여 전달합니다.
     """
     resume_ids_str = request.GET.get('resumes', '')
     if not resume_ids_str:
-        return redirect('resume_list')
-
+        return redirect('resume_list') 
     resume_ids = resume_ids_str.split(',')
-    selected_resumes = Resume.objects.filter(id__in=resume_ids)
-
-    # --- 1. 이력서 데이터 준비 ---
-    resume_texts = []
-    for i, resume in enumerate(selected_resumes, 1):
-        text = f"""### 이력서 {i}: {resume.title} ###
-- 희망 직무: {resume.job}
-- 희망 근무지: {resume.location}
-- 학력: {resume.university} {resume.major} ({resume.gpa})
-- 보유 기술: {resume.skills}
-"""
-        resume_texts.append(text)
-    combined_resume_text = "\n---\n".join(resume_texts)
-
-    # --- 2. LLM Agent를 위한 프롬프트 설계 ---
-    prompt = f"""
-당신은 최고의 커리어 컨설턴트입니다. 아래에 제공된 이력서 내용을 바탕으로, 이 사람(들)에게 가장 적합할 것으로 예상되는 최신 채용 공고를 5개 추천해 주세요.
-
-[이력서 내용]
-{combined_resume_text}
-
-[지시사항]
-1. 이력서의 희망 직무, 보유 기술, 학력 등을 종합적으로 고려하여 추천해야 합니다.
-2. 추천 결과는 반드시 아래와 같은 JSON 형식의 리스트로만 응답해야 합니다. 다른 설명은 절대 추가하지 마세요.
-3. 각 공고의 id는 임의의 고유한 정수 값을 부여하세요.
-
-```json
-[
-  {{"id": 101, "company": "회사명", "title": "공고 제목", "location": "근무지"}},
-  {{"id": 102, "company": "회사명", "title": "공고 제목", "location": "근무지"}}
-]
-"""
+    # --- Agent에게 전달할 단일 'query' 문자열 생성 ---
     
-    # --- 3. Agent 호출 및 4. 결과 파싱 ---
+    query = """
+    [최종 목표]
+    내 이력서에 가장 적합한 채용 공고 5개를 JSON 형식으로 추천해줘.
+
+    [작업 절차와 사고 과정]
+    1. 먼저, 너가 가진 `resume_qa` 툴을 사용해서 "이력서의 핵심 직무와 주요 기술 스택을 쉼표로 구분해서 나열해줘"라고 질문해. 이렇게 하면 내 이력서의 핵심 정보를 얻을 수 있을 거야.
+    2. `resume_qa`가 알려준 이력서 정보를 바탕으로, `document_search` 툴에서 사용할 가장 효과적인 검색 키워드(query)를 만들어.
+    3. 그 키워드로 `document_search` 툴을 호출해서 관련성이 높은 채용 공고들을 검색해.
+    4. `document_search`의 검색 결과와 `resume_qa`로 파악한 전체 이력서 내용을 종합적으로 비교하고 분석해서, 가장 적합하다고 판단되는 5개의 공고를 신중하게 선정해.
+    5. 최종 답변은 다른 부가적인 설명이나 인사말 없이, 반드시 아래 [결과 형식]을 따르는 순수한 JSON 리스트 문자열로만 생성해야 해.
+
+    [결과 형식]
+    ```json
+    [
+      {{"id": 101, "company": "실제 회사명", "title": "실제 공고 제목", "location": "근무지"}},
+      {{"id": 102, "company": "실제 회사명", "title": "실제 공고 제목", "location": "근무지"}}
+    ]
+    ```
+    """
+
+    # ---  Agent 호출 및 결과 파싱 ---
     recommended_jobs = []
     try:
-        # 3.1 Agent 생성
         agent = get_agent_chain()
         
-        # 3.2 Agent 실행 (채팅이 아닌 단일 요청/응답에는 .invoke()가 더 적합)
-        #    이 프롬프트를 Agent에게 전달하여 결과를 요청합니다.
-        #    세션 ID 가져오기 (없으면 생성)
         if not request.session.session_key:
             request.session.create()
         session_id = request.session.session_key
 
-        #    invoke 호출 시 config에 session_id 전달
-        print("실제 Agent 호출 시작...")
+        print("Agent 호출 시작 (모든 정보가 담긴 단일 쿼리 전달)...")
         result = agent.invoke(
-            {"input": prompt},
+            {"input": query}, # '지시사항이 담긴 쿼리'를 input으로 전달
             config={"configurable": {"session_id": session_id}}
         )
         
-        # 3.3 결과 추출 (Agent의 출력 key가 'output'이라고 가정)
         agent_output = result.get('output', '')
         print(f"Agent로부터 받은 결과: {agent_output}")
 
-        # 3.4 LLM이 생성한 ```json ... ``` 코드 블록을 정리 (이 부분은 유지)
         if "```json" in agent_output:
             agent_output = agent_output.split("```json")[1].split("```")[0].strip()
         
-        # 3.5 JSON 텍스트를 파이썬 리스트로 변환
         recommended_jobs = json.loads(agent_output)
         print("Agent 결과 파싱 성공!")
 
-    except json.JSONDecodeError:
-        print("오류: Agent가 유효한 JSON을 반환하지 않았습니다.")
-        recommended_jobs = [] 
     except Exception as e:
-        print(f"Agent 호출 중 오류 발생: {e}")
+        print(f"Agent 호출 또는 결과 파싱 중 오류 발생: {e}")
         recommended_jobs = []
-
-    # 추천 결과와 원본 이력서 ID를 세션에 저장
+    # 세션 저장, 리디렉션
     request.session['recommended_jobs'] = recommended_jobs
     request.session['selected_resume_ids'] = resume_ids
-
-    # 결과 페이지로 리디렉션
     return redirect('recommend_result')
     
 
@@ -297,21 +340,18 @@ def recommend_result_view(request):
     """
     Agent가 추천한 공고 목록을 보여주고 사용자가 선택할 수 있게 합니다.
     """
-    # 세션에서 추천 결과와 이력서 ID 가져오기
+   # 세션에서 추천 결과만 가져오기.
     recommended_jobs = request.session.get('recommended_jobs')
-    resume_ids = request.session.get('selected_resume_ids')
+    selected_resume_ids = request.session.get('selected_resume_ids', [])
 
-    # 세션에 데이터가 없으면 (예: 페이지를 새로고침하거나 직접 URL로 접근한 경우) 시작 페이지로 이동
-    if not recommended_jobs or not resume_ids:
-        # 적절한 오류 메시지를 보여주거나, 이력서 목록으로 리디렉션
+
+    # 세션에 추천 공고 데이터가 없으면 시작 페이지로 이동
+    if not recommended_jobs:
         return redirect('resume_list')
-    
-    selected_resumes = Resume.objects.filter(id__in=resume_ids)
 
     context = {
-        'selected_resumes': selected_resumes,
         'recommended_jobs': recommended_jobs,
-        'resume_ids_str': ','.join(resume_ids),
+        'resume_ids_str': ",".join(selected_resume_ids),
         'current_page': 'resume',
         'switch_url_name': 'home',
     }
@@ -324,91 +364,101 @@ def recommend_result_view(request):
 
     return render(request, 'recommend_result.html', context)
 
-# --- [View 11] 최종 리포트 생성을 위한 페이지 뷰 ---
+
+# --- [View 11] 최종 리포트 생성을 위한 페이지 뷰 (분할 정복 방식) ---
 def generate_final_report_view(request):
-    """
-    선택된 이력서와 추천 공고를 바탕으로 최종 매칭 리포트를 생성합니다.
-    """
     if request.method != 'POST':
-        # POST 요청이 아니면 비정상적인 접근으로 보고 리디렉션
         return redirect('resume_list')
 
-    # --- 폼에서 전송된 데이터 가져오기 ---
-    # 1. 'recommend_result.html'의 <input type="hidden" name="resume_ids" ...> 태그가 보낸 값을 받음
+    # --- 1. 폼 데이터 가져오기 ---
     resume_ids_str = request.POST.get('resume_ids', '')
-    
-    # 2. 'recommend_result.html'의 <input type="checkbox" name="selected_jobs" ...> 태그들이 보낸 값들을 받음
     selected_job_ids = request.POST.getlist('selected_jobs')
 
     if not resume_ids_str or not selected_job_ids:
-        # 필요한 정보가 없으면 오류 처리 또는 리디렉션
         return redirect('resume_list')
 
-    # --- 최종 리포트 생성을 위한 데이터 준비 ---
-    # 이력서 정보 가져오기
-    resume_ids = resume_ids_str.split(',')
-    resumes = Resume.objects.filter(id__in=resume_ids)
-    
-    # TODO: 실제 서비스에서는 DB에서 공고 정보를 가져와야 합니다.
-    # 지금은 가상의 공고 데이터에서 선택된 것만 필터링합니다.
-    all_fake_jobs = [
-        {'id': '101', 'company': '삼성 SDS', 'title': '하반기 석박사 채용'},
-        {'id': '102', 'company': 'Apple', 'title': '강남 MD / Staff 모집'},
-        {'id': '103', 'company': '네이버', 'title': '클라우드 플랫폼 백엔드 개발자'},
-        {'id': '104', 'company': '카카오', 'title': '데이터 사이언티스트 (인턴)'},
-        {'id': '105', 'company': '현대자동차', 'title': '자율주행 소프트웨어 엔지니어'}
-    ]
-    selected_jobs = [job for job in all_fake_jobs if job['id'] in selected_job_ids]
+    # ====================================================================
+    # ▼▼▼ 분할 정복 로직 시작 ▼▼▼
+    # ====================================================================
 
-    # --- 최종 리포트 생성을 위한 Agent 호출 ---
-    
-    # 1. 두 번째 Agent를 위한 새로운 프롬프트 설계
-    # 이력서와 공고 정보를 모두 텍스트로 변환하여 프롬프트에 포함시킵니다.
-    resume_details = "\n".join([f"- 이력서: {r.title}" for r in resumes])
-    job_details = "\n".join([f"- 공고: {j['company']} - {j['title']}" for j in selected_jobs])
-    
-    final_prompt = f"""
-당신은 경력 개발 전문가입니다. 아래 제공된 이력서들과 채용 공고들의 적합도를 상세하게 분석하고, 최종 매칭 리포트를 생성해 주세요.
-
-[분석 대상 이력서]
-{resume_details}
-
-[분석 대상 공고]
-{job_details}
-
-[리포트 작성 지시사항]
-1. 각 이력서와 공고의 핵심 요구사항 및 강점을 요약하세요.
-2. 이력서의 기술, 경험과 공고의 자격 요건을 비교하여 적합도를 분석해 주세요 (예: "매우 적합", "부분적으로 적합").
-3. 어떤 점에서 강점이 있고, 어떤 점이 부족할 수 있는지 구체적인 근거를 들어 설명해 주세요.
-4. 최종적으로 종합적인 평가와 지원자에게 도움이 될 만한 조언을 포함하여 리포트를 완성해 주세요.
-5. 친절하고 전문적인 어조로 작성해 주세요.
-"""
-
-    # 2. Agent 호출 및 결과 사용
+    final_report_content = "리포트 생성 중 오류가 발생했습니다."
     try:
         agent = get_agent_chain()
-        #  세션 ID 가져오기 (없으면 생성)
         if not request.session.session_key:
             request.session.create()
         session_id = request.session.session_key
+        
+        # --- [1단계: 공고 정보 수집] ---
+        # for 루프를 돌며 각 공고의 상세 정보를 Agent에게 요청합니다.
+        job_details_list = []
+        print(">>> [1/3] 공고 정보 수집 시작...")
+        for job_id in selected_job_ids:
+            # Agent에게는 "이 ID의 정보만 찾아줘" 라는 매우 간단한 작업을 시킵니다.
+            query_for_single_job = f"""
+            `document_search` 툴을 사용해서 ID가 "{job_id}"인 채용 공고의 상세 내용을 찾아줘.
+            다른 설명 없이, 찾은 공고의 내용(회사명, 직무, 자격요건, 우대사항 등)만 텍스트로 응답해줘.
+            """
+            result = agent.invoke(
+                {"input": query_for_single_job},
+                config={"configurable": {"session_id": session_id}}
+            )
+            job_content = result.get('output', f'ID {job_id} 공고 정보를 찾을 수 없습니다.')
+            job_details_list.append(f"--- 공고 ID: {job_id} ---\n{job_content}")
+            print(f">>> 공고 ID {job_id} 정보 수집 완료.")
+        
+        # --- [2단계: 데이터 취합] ---
+        # 이력서 정보와 수집된 모든 공고 정보를 하나의 큰 텍스트로 합칩니다.
+        print(">>> [2/3] 최종 리포트용 데이터 취합...")
+        resumes = Resume.objects.filter(id__in=resume_ids_str.split(','))
+        resume_details_list = []
+        for r in resumes:
+            resume_text = f"""
+            - 이력서 제목: {r.title}, 최종 학력: {r.education_level}
+            - 학교/전공: {r.university} / {r.major}
+            - 경력: {r.experience_years}년, 보유 기술: {r.skills}, 희망 직무: {r.job}
+            """
+            resume_details_list.append(resume_text.strip())
+        
+        full_resume_details = "\n\n".join(resume_details_list)
+        full_job_details = "\n\n".join(job_details_list)
 
-        #  invoke 호출 시 config에 session_id 전달
-        print("최종 리포트 생성을 위해 Agent 호출...")
-        result = agent.invoke(
-            {"input": final_prompt},
+        # --- [3단계: 최종 리포트 생성 요청] ---
+        # Agent에게는 이제 '분석 및 작성'이라는 단 하나의 명확한 작업만 요청합니다.
+        print(">>> [3/3] 최종 리포트 생성 Agent 호출...")
+        query_for_final_report = f"""
+        [작업 목표]
+        아래에 제공된 [이력서 정보]와 [채용 공고 정보]를 바탕으로,
+        이 둘의 적합도를 상세하게 분석하는 최종 매칭 리포트를 생성해야 합니다.
+
+        [이력서 정보]
+        {full_resume_details}
+
+        [채용 공고 정보]
+        {full_job_details}
+
+        [리포트 작성 지시사항]
+        1. 제공된 정보를 바탕으로, 이력서의 강점과 공고의 핵심 요구사항을 비교 분석해주세요.
+        2. 어떤 점에서 적합하고, 어떤 점을 보완하면 좋을지 구체적인 근거를 들어 설명해주세요.
+        3. 최종 결과물은 친절하고 전문적인 어조의 상세한 텍스트 리포트여야 합니다. 마크다운 형식을 활용하여 가독성을 높여주세요.
+        """
+        
+        final_result = agent.invoke(
+            {"input": query_for_final_report},
             config={"configurable": {"session_id": session_id}}
         )
-        final_report_content = result.get('output', '리포트 생성 중 오류가 발생했습니다.')
+        final_report_content = final_result.get('output', final_report_content)
 
     except Exception as e:
-        print(f"최종 리포트 생성 Agent 호출 중 오류: {e}")
-        final_report_content = "AI 분석 중 오류가 발생하여 리포트를 생성할 수 없습니다."
-        
+        print(f"최종 리포트 생성 중 오류 발생: {e}")
+        final_report_content = f"AI 분석 중 오류가 발생하여 리포트를 생성할 수 없습니다.\n\n오류: {e}"
 
+    # ====================================================================
+    # ▲▲▲ 분할 정복 로직 종료 ▲▲▲
+    # ====================================================================
+        
     context = {
         'resumes': resumes,
-        'jobs': selected_jobs,
-        'report_content': final_report_content, # ★ Agent가 생성한 실제 내용으로 교체됨
+        'report_content': final_report_content,
         'current_page': 'resume',
         'switch_url_name': 'home',
     }
