@@ -153,7 +153,7 @@ class AgentTools:
             logging.warning("LLM is None – dataframe 툴 비활성화.")
             return None
 
-        data_path = BASE_DIR / "Data_Files" / "wanted_detail_improve_20250604.json"
+        data_path = BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
         if not data_path.exists():
             logging.warning("DataFrame 파일을 찾을 수 없음 – dataframe 툴 비활성화.")
             return None
@@ -281,8 +281,8 @@ class AgentTools:
         실제로는 무시하거나 Top-K 개수 정도만 파싱해 써도 된다.
         """
         DATA_DIR = BASE_DIR / "Data_Files"
-        JOB_POST_FILE = DATA_DIR / "wanted_detail_improve_20250604.json"
-        RESUME_FILE = DATA_DIR / "resume_sample.json"
+        JOB_POST_FILE = DATA_DIR / "wanted_detail_improve_20250616.json"
+        RESUME_FILE = DATA_DIR / "resume.json"
         SBERT_MODEL_NAME = AgentTools.SBERT_MODEL_NAME  # 클래스 상수 재사용
 
         # ── ① 공통 리소스: 모델과 JSON을 한 번만 로드 ──────────────────
@@ -403,7 +403,7 @@ class AgentTools:
             func=_find_best_job_match,
             name="find_best_job_match",
             description=(
-                "사용자 이력서(resume.json)와 채용 공고(wanted_detail_improve_20250604.json)를 비교해 "
+                "사용자 이력서(resume.json)와 채용 공고(wanted_detail_improve_20250616.json)를 비교해 "
                 "가장 적합한 공고 상위 5개를 표 형태로 반환한다."
             ),
         )

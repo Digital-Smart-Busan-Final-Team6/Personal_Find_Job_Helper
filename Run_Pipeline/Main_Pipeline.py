@@ -5,13 +5,13 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.stores import InMemoryStore
 from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
-from Agent_Tool import *
-from Document_Loader import DocumentLoader
-from Document_Splitter import DocumentSplitter
-from Embedding_DB import EmbeddingDB
-from Env_Loader import EnvLoader
-from LLM_Factory import LLMFactory
-from Retriever_Builder import RetrieverBuilder
+from .Agent_Tool import *
+from .Document_Loader import DocumentLoader
+from .Document_Splitter import DocumentSplitter
+from .Embedding_DB import EmbeddingDB
+from .Env_Loader import EnvLoader
+from .LLM_Factory import LLMFactory
+from .Retriever_Builder import RetrieverBuilder
 
 
 def main(return_chain_only: bool = False):
@@ -25,8 +25,8 @@ def main(return_chain_only: bool = False):
         file_path = BASE_DIR / os.getenv("DATA_PATH")
         chunk_size = 1000
         overlap_size = 50
-        device = "mps"
-        persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}_last"
+        device = "cuda"
+        persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
         retriever_mode = 1
         k = 3
         engine_num = 1
@@ -49,7 +49,7 @@ def main(return_chain_only: bool = False):
         chunk_size = 1000
         overlap_size = 50
         persist_dir = BASE_DIR / os.getenv("DATA_PATH","Data_Files") / f"{kind}_{chunk_size}"
-        device = "mps"
+        device = "cuda"
         retriever_mode = 4
         k = 3
         engine_num = 1
