@@ -11,7 +11,6 @@ class DocumentLoader:
         self.file_path = Path(file_path)
         self.kind = kind.lower()
 
-
     def load(self) -> List[Document]:
         docs: List[Document] = []
         if self.kind in ("json", "all"):
@@ -21,7 +20,8 @@ class DocumentLoader:
         return docs
 
     def _load_json_files(self) -> List[Document]:
-        docs: List[Document] = []
+        docs_post: List[Document] = []
+        docs_company: List[Document] = []
         # 1) JSON 파일 전체 스캔
         json_paths = list(Path(self.file_path).glob("*.json"))
 
@@ -35,11 +35,11 @@ class DocumentLoader:
                 for post_id, post in raw.items():
                     meta = {
                         "id": post_id,
-                        "source": "채용 공고"
+                        "category": "채용 공고"
                     }
                     # dict를 "Key: Value" 형태의 문자열로 변환
                     content = "\n".join(f"{k}: {v}" for k, v in post.items())
-                    docs.append(Document(page_content=content, metadata=meta))
+                    docs_post.append(Document(page_content=content, metadata=meta))
 
                 # (이후에도 company 파일을 함께 처리하려면 continue 없이 두 루프 모두 실행)
 
@@ -52,14 +52,12 @@ class DocumentLoader:
                     company_name = company.get("회사명", "")
                     metadata = {
                         "id": company_name,
-                        "source": "회사 정보"
+                        "category": "회사 정보"
                     }
 
                     # 나머지 필드는 key: value 형태로 page_content 생성
                     lines = []
                     for k, v in company.items():
-                        if k == "회사명":
-                            continue
                         if isinstance(v, list):
                             joined = "\n".join(v)
                         else:
@@ -67,8 +65,8 @@ class DocumentLoader:
                         lines.append(f"{k}: {joined}")
 
                     page_content = "\n".join(lines)
-                    docs.append(Document(page_content=page_content, metadata=metadata))
+                    docs_company.append(Document(page_content=page_content, metadata=metadata))
 
-        if not docs:
+        if not docs_post and not docs_company:
             raise FileNotFoundError("`improve` 또는 `Company` JSON 파일을 찾지 못했습니다.")
-        return docs
+        return docs_post, docs_company

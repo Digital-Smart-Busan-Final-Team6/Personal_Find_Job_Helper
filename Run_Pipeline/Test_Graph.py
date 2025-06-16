@@ -37,7 +37,7 @@ embed_db = EmbeddingDB(model_name="nlpai-lab/KURE-v1", device=device,
 db = embed_db.get_or_create_db(chunks)
 
 # ⑥ 리트리버 빌드
-retriever_builder = RetrieverBuilder(db=db, docs=chunks, k=k, mode=retriever_mode)  # 리트리버 빌더 생성
+retriever_builder = RetrieverBuilder(db=db, chunks=chunks, k=k, mode=retriever_mode)  # 리트리버 빌더 생성
 retriever = retriever_builder.build()
 
 workflow = StateGraph(GraphState)
