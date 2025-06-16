@@ -3,14 +3,15 @@
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.stores import InMemoryStore
 from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
-from Agnet_Tools import *
+from Agent_Tool import *
 from Document_Loader import DocumentLoader
 from Document_Splitter import DocumentSplitter
 from Embedding_DB import EmbeddingDB
 from Env_Loader import EnvLoader
 from LLM_Factory import LLMFactory
-from Retiever_Builder import RetrieverBuilder
+from Retriever_Builder import RetrieverBuilder
 
 
 def main(return_chain_only: bool = False):
@@ -25,7 +26,7 @@ def main(return_chain_only: bool = False):
         chunk_size = 1000
         overlap_size = 50
         device = "mps"
-        persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
+        persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}_last"
         retriever_mode = 1
         k = 3
         engine_num = 1
@@ -44,23 +45,25 @@ def main(return_chain_only: bool = False):
         # backend_num    = int(input("LLM 백엔드(1:OpenAI/2:Ollama/3:HF): ") or 1)
         # 빠른 실행 위해 고정값 사용
         kind = "json"
-        file_path = BASE_DIR / os.getenv("DATA_PATH")
+        file_path = BASE_DIR / os.getenv("DATA_PATH", "Data_Files")
         chunk_size = 1000
         overlap_size = 50
-        persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
+        persist_dir = BASE_DIR / os.getenv("DATA_PATH","Data_Files") / f"{kind}_{chunk_size}"
         device = "mps"
-        retriever_mode = 3
-        k = 10
+        retriever_mode = 4
+        k = 3
         engine_num = 1
         backend_num = 1
+
     # ③ 문서 로드
     loader = DocumentLoader(file_path, kind)  # 일반 파일들을 Document형태로 변환해서 다 불러옴
-    docs = loader._load_json_files()
+    docs_post, docs_company = loader._load_json_files()
 
     # ④ 문서 분할
     splitter = DocumentSplitter(chunk_size=chunk_size, overlap=overlap_size)  # 이미 분할된 문서가 있다면 로드하고 아니면 새로 스플릿함
-    chunks = splitter.split(docs, cache_dir=file_path)
-
+    #chunks_recruitment = splitter.split(docs_post, cache_dir=file_path)
+    #chunks_company = splitter.split(docs_company, cache_dir=file_path)
+    chunks = splitter.split(docs_post + docs_company, cache_dir=file_path)  # 게시글과 회사 정보를 합쳐서 분할
     # ⑤ 임베딩 & DB 생성/로드
     embed_db = EmbeddingDB(model_name="nlpai-lab/KURE-v1", device=device,
                            persist_dir=persist_dir)  # 이미 임베딩된 DB가 있다면 로드하고 아니면 새로 임베딩함
@@ -72,7 +75,8 @@ def main(return_chain_only: bool = False):
     # ⑥ 리트리버 빌드
     retriever_builder = RetrieverBuilder(
         db=db,
-        docs=chunks,
+        full_docs=docs_post + docs_company,  # 전체 문서 목록 (게시글 + 회사 정보)
+        chunks=chunks,
         k=k,
         mode=retriever_mode
     )
@@ -90,12 +94,17 @@ def main(return_chain_only: bool = False):
         print(f"Tool: {tool.get('tool')}")  # 사용된 도구의 이름을 출력합니다.
         print("<<<<<<< 도구 호출 >>>>>>")
 
-    # 관찰 결과를 출력하는 콜백 함수입니다.
-    def observation_callback(observation) -> None:
+    def observation_callback(obs_dict) -> None:
         print("<<<<<<< 관찰 내용 >>>>>>")
-        print(
-            f"Observation: {observation.get('observation')[0]}"
-        )  # 관찰 내용을 출력합니다.
+
+        raw = obs_dict.get("observation", "")
+        # ① 값이 리스트인지 문자열인지 구분
+        if isinstance(raw, list):
+            preview = raw[0] if raw else "<EMPTY LIST>"
+        else:  # str · None
+            preview = raw.strip()[:200] or "<EMPTY STRING>"
+
+        print(f"Observation preview: {preview}")
         print("<<<<<<< 관찰 내용 >>>>>>")
 
     # 최종 결과를 출력하는 콜백 함수입니다.
