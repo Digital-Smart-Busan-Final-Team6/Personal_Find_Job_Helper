@@ -1,7 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <title>{% if is_edit_mode %}이력서 수정{% else %}새 이력서 작성{% endif %}</title>
@@ -16,8 +15,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
 
     <!-- 3. 구글 폰트 -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
@@ -316,21 +313,15 @@
     <form method="post">
         {% csrf_token %}
         <div class="form-container">
-            <!-- 왼쪽 메뉴 -->
+            <!-- 왼쪽 메뉴 (sidebar) -->
             <div class="sidebar">
                 <div class="nav flex-column nav-pills" id="v-tabs" role="tablist" aria-orientation="vertical">
-                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#content-education"
-                        type="button">학력/경력</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-experience"
-                        type="button">경험/활동</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-certs"
-                        type="button">수상/자격증/어학</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-skills" type="button">보유
-                        기술</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-job" type="button">희망
-                        직무</button>
-                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-location" type="button">희망
-                        근무지</button>
+                    <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#content-education" type="button">학력/경력</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-experience" type="button">경험/활동</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-certs" type="button">수상/자격증/어학</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-skills" type="button">보유 기술</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-job" type="button">희망 직무</button>
+                    <button class="nav-link" data-bs-toggle="pill" data-bs-target="#content-location" type="button">희망 근무지</button>
                 </div>
             </div>
 
@@ -338,10 +329,9 @@
             <div class="main-content">
                 <div class="form-header">
                     <h1>{% if is_edit_mode %}이력서 수정{% else %}새 이력서 작성{% endif %}</h1>
-                    <!-- {{ form.title }} 대신 input 태그를 직접 작성하여 placeholder를 추가합니다. -->
                     <input type="text" name="{{ form.title.name }}" id="id_title" class="form-control"
-                        placeholder="이력서의 제목을 입력해주세요 (예: 백엔드 개발자 이력서)" value="{{ form.title.value|default:'' }}"
-                        maxlength="200" required>
+                           placeholder="이력서의 제목을 입력해주세요 (예: 백엔드 개발자 이력서)" 
+                           value="{{ form.title.value|default:'' }}" maxlength="200" required>
                 </div>
 
                 <div class="tab-content" id="v-tabs-content">
@@ -349,10 +339,8 @@
                     <div class="tab-pane fade show active" id="content-education" role="tabpanel">
                         <h4>학력 및 경력</h4>
                         <div class="row g-3 mb-3">
-                            <div class="col-md-6"><label class="form-label">최종 학력</label>{{ form.education_level }}
-                            </div>
-                            <div class="col-md-6"><label class="form-label">경력(년)</label>{{ form.experience_years }}
-                            </div>
+                            <div class="col-md-6"><label class="form-label">최종 학력</label>{{ form.education_level }}</div>
+                            <div class="col-md-6"><label class="form-label">경력(년)</label>{{ form.experience_years }}</div>
                         </div>
                         <div class="row g-3">
                             <div class="col-md-6"><label class="form-label">학교명</label>{{ form.university }}</div>
@@ -378,7 +366,9 @@
                     <!-- 보유 기술 -->
                     <div class="tab-pane fade" id="content-skills" role="tabpanel">
                         <h4>보유 기술</h4>
-                        {{ form.skills }}
+                        <input type="text" name="{{ form.skills.name }}" id="id_skills" class="form-control" 
+                               value="{{ form.skills.value|default:'' }}" 
+                               placeholder="예: Python, Django, React (입력 후 엔터)">
                     </div>
 
                     <!-- 희망 직무 -->
@@ -692,121 +682,126 @@
                 </div>
             </div>
 
-                <div class="submit-container">
-                    <button type="submit" class="submit-btn">
-                        {% if is_edit_mode %}수정 완료{% else %}이력서 저장하기{% endif %}
-                    </button>
-                </div>
+            <div class="submit-container">
+                <button type="submit" class="submit-btn">
+                    {% if is_edit_mode %}수정 완료{% else %}이력서 저장하기{% endif %}
+                </button>
             </div>
         </div>
-    </form>
+    </div>
+</form>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
+<!-- ▼▼▼ 모든 JavaScript 코드는 여기에 단 한 번만 작성합니다. ▼▼▼ -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
 
-            // --- 1. 희망 직무/근무지 탭 전환 로직 ---
-            document.querySelectorAll('.job-container').forEach(container => {
-                const categoryButtons = container.querySelectorAll(".job-categories .job-category-btn");
+        // --- 1. 희망 직무/근무지 탭 전환 로직 ---
+        document.querySelectorAll('.job-container').forEach(container => {
+            const categoryButtons = container.querySelectorAll(".job-categories .job-category-btn");
+            categoryButtons.forEach(button => {
+                button.addEventListener("click", function (event) {
+                    const clickedButton = event.currentTarget;
+                    const currentContainer = clickedButton.closest('.job-container');
+                    if (!currentContainer) return;
 
-                // ▼▼▼ 변수명을 categoryButtons로 수정하고, 로직을 더 명확하게 변경 ▼▼▼
-                categoryButtons.forEach(button => {
-                    button.addEventListener("click", function (event) {
-                        const clickedButton = event.currentTarget;
-                        const currentContainer = clickedButton.closest('.job-container');
-                        if (!currentContainer) return;
-
-                        const subcategoryGroups = currentContainer.querySelectorAll(".subcategory-group");
-
-                        // 모든 카테고리 버튼에서 'active' 클래스를 제거합니다.
-                        currentContainer.querySelectorAll('.job-category-btn').forEach(btn => btn.classList.remove("active"));
-                        
-                        // 모든 서브카테고리 그룹을 숨깁니다.
-                        subcategoryGroups.forEach(g => g.classList.remove("active"));
-                        
-                        // '지금 클릭된' 버튼에만 'active' 클래스를 추가합니다.
-                        clickedButton.classList.add("active");
-                        
-                        // 해당 카테고리의 서브 그룹을 찾아서 보여줍니다.
-                        const category = clickedButton.getAttribute("data-category");
-                        const targetGroup = currentContainer.querySelector(`.subcategory-group[data-category="${category}"]`);
-                        if (targetGroup) {
-                            targetGroup.classList.add("active");
-                        }
-                    });
+                    // 모든 버튼과 그룹의 active 상태를 먼저 초기화
+                    currentContainer.querySelectorAll('.job-category-btn').forEach(btn => btn.classList.remove("active"));
+                    currentContainer.querySelectorAll(".subcategory-group").forEach(g => g.classList.remove("active"));
+                    
+                    // 클릭된 버튼과 해당 그룹만 활성화
+                    clickedButton.classList.add("active");
+                    const category = clickedButton.getAttribute("data-category");
+                    const targetGroup = currentContainer.querySelector(`.subcategory-group[data-category="${category}"]`);
+                    if (targetGroup) {
+                        targetGroup.classList.add("active");
+                    }
                 });
             });
-
-            // --- 2. 보유 기술(Tagify) 초기화 로직 ---
-            const skillsTabButton = document.querySelector('button[data-bs-target="#content-skills"]');
-            let tagifyInstance = null;
-
-            if (skillsTabButton) {
-                skillsTabButton.addEventListener('shown.bs.tab', function (event) {
-                    if (!tagifyInstance) {
-                        console.log("보유 기술 탭이 활성화되어 Tagify를 초기화합니다.");
-                        try {
-                            var groupedSkills = {{ skills_whitelist|safe }};
-                            var whitelistForTagify = [];
-                            for (const groupName in groupedSkills) {
-                                const translatedGroupName = {
-                                    "languages": "프로그래밍 언어", "frontend": "프론트엔드", "backend": "백엔드",
-                                    "mobile": "모바일", "database": "데이터베이스", "cloud_devops": "클라우드/DevOps",
-                                    "tools": "협업 툴", "design": "디자인", "ml_ai": "머신러닝/AI",
-                                    "data_analysis": "데이터 분석", "business_skills": "비즈니스/기획",
-                                    "marketing": "마케팅", "soft_skills": "소프트 스킬"
-                                }[groupName] || groupName;
-                                groupedSkills[groupName].forEach(skill => {
-                                    whitelistForTagify.push({ group: translatedGroupName, value: skill });
-                                });
-                            }
-                            var input = document.querySelector('#id_skills');
-                            if (input) {
-                                tagifyInstance = new Tagify(input, {
-                                    whitelist: whitelistForTagify,
-                                    templates: {
-                                        dropdownHeader(items) {
-                                            const grouped = items.reduce((acc, item) => {
-                                                const group = item.group || '기타';
-                                                if (!acc[group]) acc[group] = [item];
-                                                else acc[group].push(item);
-                                                return acc;
-                                            }, {});
-                                            return Object.entries(grouped).map(([group, items]) =>
-                                                `<div class='tagify__dropdown__header'><strong>${group}</strong><span>(${items.length}개)</span></div>`
-                                            ).join('');
-                                        }
-                                    },
-                                    dropdown: { maxItems: 40, enabled: 0, closeOnSelect: false, closeOnScroll: false }
-                                });
-                            }
-                        } catch (e) {
-                            console.error("Tagify 초기화 중 오류 발생:", e);
-                        }
-                    }
-                });
-            }
-
-            // --- 3. 폼 제출 시 제목 유효성 검사 로직 ---
-            const mainForm = document.querySelector('form');
-            const titleInput = document.getElementById('id_title');
-
-            if (mainForm && titleInput) {
-                mainForm.addEventListener('submit', function (event) {
-                    if (titleInput.value.trim() === '') {
-                        event.preventDefault();
-                        alert('이력서 제목을 입력해주세요.');
-                        titleInput.focus();
-                        titleInput.classList.add('is-invalid');
-                    }
-                });
-                titleInput.addEventListener('input', function () {
-                    if (this.classList.contains('is-invalid')) {
-                        this.classList.remove('is-invalid');
-                    }
-                });
-            }
         });
-    </script>
-</body>
 
+        // --- 2. 보유 기술(Tagify) 초기화 로직 (핵심!) ---
+        // Tagify를 초기화하는 함수를 정의합니다.
+        function initializeTagify() {
+            const input = document.querySelector('#id_skills');
+            if (!input) {
+                console.error("Tagify를 적용할 #id_skills 요소를 찾을 수 없습니다.");
+                return;
+            }
+
+            try {
+                // Django 템플릿에서 전달된 스킬 목록(JSON 문자열)을 파싱합니다.
+                const groupedSkills = {{ skills_whitelist|safe }};
+                let whitelistForTagify = [];
+                
+                // 스킬 목록을 Tagify가 이해하는 형식으로 재구성합니다.
+                for (const groupName in groupedSkills) {
+                    const translatedGroupName = {
+                        "languages": "프로그래밍 언어", "frontend": "프론트엔드", "backend": "백엔드",
+                        "mobile": "모바일", "database": "데이터베이스", "cloud_devops": "클라우드/DevOps",
+                        "tools": "협업 툴", "design": "디자인", "ml_ai": "머신러닝/AI",
+                        "data_analysis": "데이터 분석", "business_skills": "비즈니스/기획",
+                        "marketing": "마케팅", "soft_skills": "소프트 스킬"
+                    }[groupName] || groupName;
+                    
+                    groupedSkills[groupName].forEach(skill => {
+                        whitelistForTagify.push({ group: translatedGroupName, value: skill });
+                    });
+                }
+                
+                // Tagify 인스턴스를 생성합니다.
+                new Tagify(input, {
+                    whitelist: whitelistForTagify,
+                    templates: {
+                        dropdownHeader(items) {
+                            const grouped = items.reduce((acc, item) => {
+                                const group = item.group || '기타';
+                                if (!acc[group]) acc[group] = [item];
+                                else acc[group].push(item);
+                                return acc;
+                            }, {});
+                            return Object.entries(grouped).map(([group, items]) =>
+                                `<div class='tagify__dropdown__header'><strong>${group}</strong><span>(${items.length}개)</span></div>`
+                            ).join('');
+                        }
+                    },
+                    dropdown: {
+                        maxItems: 40,
+                        enabled: 0,
+                        closeOnSelect: false,
+                        highlightFirst: true
+                    }
+                });
+                console.log("Tagify가 성공적으로 초기화되었습니다.");
+
+            } catch (e) {
+                console.error("Tagify 초기화 중 오류 발생:", e);
+                // 오류가 발생해도 기본 input은 남아있으므로, 앱이 멈추지는 않습니다.
+            }
+        }
+
+        // 페이지가 로드되면 즉시 Tagify를 초기화합니다.
+        initializeTagify();
+
+        // --- 3. 폼 제출 시 제목 유효성 검사 로직 ---
+        const mainForm = document.querySelector('form');
+        const titleInput = document.getElementById('id_title');
+        if (mainForm && titleInput) {
+            mainForm.addEventListener('submit', function (event) {
+                if (titleInput.value.trim() === '') {
+                    event.preventDefault(); // 폼 제출을 막습니다.
+                    alert('이력서 제목을 입력해주세요.');
+                    titleInput.focus();
+                    titleInput.classList.add('is-invalid'); // 부트스트랩의 유효성 검사 스타일 적용
+                }
+            });
+            // 사용자가 다시 입력을 시작하면 에러 스타일을 제거합니다.
+            titleInput.addEventListener('input', function () {
+                if (this.classList.contains('is-invalid')) {
+                    this.classList.remove('is-invalid');
+                }
+            });
+        }
+    });
+</script>
+</body>
 </html>
