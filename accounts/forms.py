@@ -1,48 +1,46 @@
-# accounts/forms.py
-
 from django import forms
-from .models import Resume
+from .models import Resume # 실제 Resume 모델이 있는 앱 이름으로 수정
 
 class ResumeForm(forms.ModelForm):
-    # 희망 직무와 근무지는 템플릿에서 직접 처리할 것이므로, 폼에서는 숨겨진 필드로 만듭니다.
-    # 이렇게 하면 뷰에서 데이터를 처리하기 용이해집니다.
-    job = forms.CharField(widget=forms.HiddenInput(), required=False)
-    location = forms.CharField(widget=forms.HiddenInput(), required=False)
-
     class Meta:
         model = Resume
-        # ★★★ 여기가 핵심! models.py와 필드 목록을 일치시킵니다. ★★★
+        # 1. models.py와 동일하게 필드 목록을 수정합니다.
         fields = [
             'title', 
-            'university', 
-            'major', 
-            'education_status', 
-            'gpa', 
-            'graduation_status', 
-            'job', 
-            'location', 
-            'skills'
+            'education_level', 'university', 'major', 'gpa', 
+            'experience_years', # 'work_experience' 대신 'experience_years' 추가
+            'job', 'location', 'skills',
+            'experience', 'certifications'
         ]
-        # --------------------------------------------------------
         
-        # 위젯 설정은 그대로 유지해도 좋습니다. 템플릿에 스타일을 적용해줍니다.
+        # 2. 위젯 설정도 새로운 필드에 맞게 수정합니다.
         widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '이력서 제목 (예: 백엔드 개발자 지원)'}),
-            'university': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 서울대학교'}),
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 백엔드 개발자 이력서'}),
+            
+            # --- 학력 위젯 ---
+            'education_level': forms.Select(attrs={'class': 'form-select'}),
+            'university': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: OO대학교'}),
             'major': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 컴퓨터공학과'}),
-            'education_status': forms.Select(attrs={'class': 'form-select'}, choices=[
-                ('', '선택'), ('중졸', '중졸'), ('고졸', '고졸'), ('학사', '학사'), ('석사', '석사'), ('박사', '박사')
-            ]),
             'gpa': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 4.2'}),
-            'graduation_status': forms.Select(attrs={'clawss': 'form-select'}, choices=[
-                ('', '선택'), ('졸업', '졸업'), ('졸업예정자', '졸업예정자')
-            ]),
-             'skills': forms.Textarea(attrs={
+            
+            # --- 경력(년) 위젯 추가 ---
+            'experience_years': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '숫자만 입력'}),
+            
+            # --- 나머지 위젯 ---
+            'skills': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '보유 기술을 입력하고 Enter를 누르세요' # placeholder 텍스트 변경
+            }),
+            'job': forms.HiddenInput(),
+            'location': forms.HiddenInput(),
+            'experience': forms.Textarea(attrs={
                 'class': 'form-control', 
                 'rows': 10, 
-                'placeholder': """보유한 역량, 스킬을 입력하세요
-예 1) Java, Spring, Notion, Jira, Git
-예 2) PPT, Figma, Slack, 의사소통, 발표, 기능정의서 작성
-예 3) SQL, Google Analytics, Tableau, 데이터 분석, 데이터 시각화"""
+                'placeholder': '대외활동, 인턴, 프로젝트, 교육 이수 내용 등을 자유롭게 기재해주세요.\n\n예시)\n\n[프로젝트]\n- 개인 포트폴리오 웹사이트 개발 (2024.01 ~ 2024.03)\n  - 주요 기술: Python, Django, JavaScript'
+            }),
+            'certifications': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'rows': 8,
+                'placeholder': '취득한 자격증, 수상 내역, 어학 능력 등을 자유롭게 기재해주세요.\n\n예시)\n\n[자격증]\n- 정보처리기사 (2023.05)\n\n[어학]\n- 영어 (비즈니스 회화 가능, TOEIC 950점)'
             }),
         }

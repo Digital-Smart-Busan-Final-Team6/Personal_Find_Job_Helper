@@ -1,0 +1,433 @@
+{% load static %} {% load math_filters %}
+
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI 추천 공고 결과</title>
+    <!-- 기본 라이브러리 및 폰트 -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* [디자인 시스템 - 다른 페이지와 통일] */
+      :root {
+        --primary-color: #000080; /* 네이비 */
+        --primary-light: #e6e6ff;
+        --text-primary: #1a2b48;
+        --text-secondary: #6c757d;
+        --border-color: #dee2e6;
+        --background-color: #f4f4f8;
+        --progress-bar-bg: #e0e7ff;
+        --selected-glow: rgba(0, 0, 128, 0.2);
+        --gold-color: #ffc107;
+        --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        --card-hover-shadow: 0 10px 25px rgba(0, 0, 128, 0.15);
+      }
+
+      /* [애니메이션] */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes pulse-glow {
+        0% {
+          box-shadow: var(--card-shadow);
+        }
+        50% {
+          box-shadow: var(--card-hover-shadow);
+        }
+        100% {
+          box-shadow: var(--card-shadow);
+        }
+      }
+      @keyframes progress-bar-fill {
+        from {
+          stroke-dashoffset: 283;
+        }
+        to {
+          stroke-dashoffset: var(--progress-offset);
+        }
+      }
+
+      /* [기본 레이아웃] */
+      body {
+        background-color: var(--background-color);
+        font-family: "Pretendard", sans-serif;
+        color: var(--text-primary);
+        padding-bottom: 150px;
+        padding-left: 80px;
+        transition: padding-left 0.3s ease-in-out;
+      }
+      body:has(.sidebar:hover) {
+        padding-left: 240px;
+      }
+      .content-area {
+        max-width: 900px;
+        padding-top: 60px;
+        margin: 0 auto;
+      }
+
+      /* [페이지 헤더 및 안내문] */
+      .page-header {
+        text-align: center;
+        margin-bottom: 20px;
+        animation: fadeInUp 0.5s ease-out;
+      }
+      .page-header .page-title {
+        font-weight: 800;
+        color: var(--text-primary);
+        font-size: 2.2rem;
+      }
+      .page-header .page-subtitle {
+        color: var(--text-secondary);
+      }
+      .instruction-text {
+        text-align: center;
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: var(--primary-color);
+        background-color: var(--primary-light);
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 40px;
+        animation: fadeInUp 0.5s ease-out 0.2s forwards;
+        opacity: 0;
+      }
+      .instruction-text .fa-lightbulb {
+        margin-right: 8px;
+      }
+
+      /* [추천 공고 카드 - 동적 & 시각적] */
+      .job-card {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        background-color: white;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+        box-shadow: var(--card-shadow);
+        opacity: 0;
+        animation: fadeInUp 0.7s ease-out forwards;
+        animation-delay: calc(var(--animation-order) * 0.15s);
+      }
+      /* ★★★ 4. 호버 효과 강화 ★★★ */
+      .job-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: var(--card-hover-shadow);
+        border-color: var(--primary-color);
+      }
+      .job-card.selected {
+        transform: translateY(-8px) scale(1.02);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px var(--selected-glow), var(--card-hover-shadow);
+      }
+      /* ★★★ 1. 펄스 애니메이션 수정 ★★★ */
+      .job-card.pulse {
+        /* pulse-glow 애니메이션은 JS로 제어되므로 CSS에서는 제거 */
+        /* 대신 JS가 제어하기 쉬운 클래스 기반 스타일만 남김 */
+        border-color: var(--primary-color);
+      }
+
+      /* 카드 왼쪽: 순위 & 적합도 */
+      .job-card-rank-score {
+        flex-shrink: 0;
+        text-align: center;
+      }
+      .rank-badge {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+      }
+      .rank-badge .fa-crown {
+        color: var(--gold-color);
+        margin-right: 4px;
+      }
+      .rank-1 .fa-crown {
+        font-size: 1.4rem;
+      }
+
+      /* 원형 프로그레스 바 */
+      .progress-circle {
+        position: relative;
+        width: 100px;
+        height: 100px;
+      }
+      .progress-circle svg {
+        transform: rotate(-90deg);
+      }
+      .progress-circle .bg-circle {
+        fill: none;
+        stroke: var(--progress-bar-bg);
+        stroke-width: 10;
+      }
+      .progress-circle .fg-circle {
+        fill: none;
+        stroke: var(--primary-color);
+        stroke-width: 10;
+        stroke-linecap: round;
+        stroke-dasharray: 283;
+        stroke-dashoffset: 283;
+        /* ★★★ 3. 프로그레스 바 속도 조절 ★★★ */
+        animation: progress-bar-fill 2s cubic-bezier(0.25, 1, 0.5, 1) forwards; /* 1.5초 -> 2초로 늘리고, 부드러운 Easing 적용 */
+        animation-delay: calc(
+          var(--animation-order) * 0.15s + 0.5s
+        ); /* 카드 애니메이션 딜레이와 맞춤 */
+      }
+      .progress-circle .score-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+      }
+
+      /* 카드 오른쪽: 공고 정보 */
+      .job-card-details {
+        flex-grow: 1;
+      }
+      .job-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+      }
+      .company-name {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+      }
+      .tech-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .tech-tag {
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 20px;
+      }
+
+      /* [하단 '리포트 생성' 고정 버튼] */
+      .report-fab-container {
+        position: fixed;
+        bottom: 40px;
+        left: calc(50% + 40px);
+        transform: translateX(-50%);
+        z-index: 1000;
+        pointer-events: none;
+        transition: left 0.3s ease-in-out;
+      }
+      .generate-btn {
+        background: var(--primary-color); /* 그라데이션 대신 단색으로 통일 */
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding: 15px 35px;
+        border-radius: 30px;
+        border: none;
+        box-shadow: 0 8px 20px rgba(0, 0, 128, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+        opacity: 0;
+        transform: translateY(20px);
+        pointer-events: auto;
+      }
+      body:has(.sidebar:hover) .report-fab-container {
+        left: calc(50% + 120px);
+      }
+      .generate-btn.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .generate-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 128, 0.4);
+      }
+      .generate-btn .fa-wand-magic-sparkles {
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <!-- ★★★ 2. body에 클래스 추가 ★★★ -->
+  <body class="resume-page">
+    <!-- ★★★ 2. 사이드바 include ★★★ -->
+    {% include '_sidebar.html' %}
+
+    <div class="content-area">
+      <div class="page-header">
+        <h1 class="page-title">AI 추천 결과</h1>
+        <p class="page-subtitle">
+          이력서를 기반으로 가장 적합한 공고를 찾았습니다.
+        </p>
+      </div>
+      <!-- ... 이하 HTML 구조는 동일 ... -->
+      <div class="instruction-text">
+        <i class="fas fa-lightbulb"></i>분석하고 싶은 공고를 클릭하여 선택한 후,
+        하단 버튼으로 리포트를 생성하세요.
+      </div>
+      <form
+        action="{% url 'generate_final_report' %}"
+        method="post"
+        id="final-report-form"
+      >
+        {% csrf_token %}
+        <input type="hidden" name="resume_ids" value="{{ resume_ids_str }}" />
+        <div id="job-list-container">
+          {% for job in recommended_jobs %}
+          <div
+            class="job-card"
+            data-job-id="{{ job.공고_ID }}"
+            style="--animation-order: {{ forloop.counter0 }};"
+          >
+            <!-- 왼쪽: 순위 & 적합도 -->
+            <div class="job-card-rank-score">
+              <div class="rank-badge rank-{{ forloop.counter }}">
+                <i class="fas fa-crown"></i>
+                <span>{{ forloop.counter }}위</span>
+              </div>
+              <div
+                class="progress-circle"
+                style="--progress-offset: calc(283 * (1 - {{ job.적합도 }}));"
+              >
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                  <circle class="bg-circle" cx="50" cy="50" r="45"></circle>
+                  <circle class="fg-circle" cx="50" cy="50" r="45"></circle>
+                </svg>
+                <!-- 'mul' 필터 없이 직접 계산합니다 -->
+                <div class="score-text">
+                  {{ job.적합도|mul:100|floatformat:1 }}%
+                </div>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 공고 정보 -->
+            <div class="job-card-details">
+              <h5 class="job-title">{{ job.제목 }}</h5>
+              <p class="company-name">
+                {{ job.회사명|default:"회사명 정보 없음" }}
+              </p>
+              <!-- 기술 스택 루프는 일단 제거하여 단순화 -->
+            </div>
+
+            <!-- 숨겨진 체크박스 -->
+            <input
+              type="checkbox"
+              class="job-checkbox"
+              name="selected_jobs"
+              value="{{ job.공고_ID }}"
+              style="display: none"
+            />
+          </div>
+          {% empty %}
+          <div class="alert alert-secondary text-center" role="alert">
+            이력서와 매칭되는 추천 공고를 찾지 못했습니다. 다른 이력서를
+            시도해보세요.
+          </div>
+          {% endfor %}
+        </div>
+        <div class="report-fab-container">
+          <button type="submit" class="generate-btn" id="generate-report-btn">
+            <i class="fas fa-wand-magic-sparkles"></i>
+            리포트 생성할 공고 선택
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const jobCards = document.querySelectorAll(".job-card");
+        const submitButton = document.getElementById("generate-report-btn");
+        const form = document.getElementById("final-report-form");
+        let pulseInterval;
+
+        // ★★★ 1. 깜빡임 버그 해결을 위한 JS 수정 ★★★
+        function startPulseAnimation() {
+          if (jobCards.length === 0) return;
+          const topCard = jobCards[0];
+
+          // 펄스 애니메이션을 직접 제어
+          pulseInterval = setInterval(() => {
+            topCard.classList.add("pulse");
+            setTimeout(() => {
+              topCard.classList.remove("pulse");
+            }, 2000); // 2초 동안만 펄스 효과 유지
+          }, 4000); // 4초마다 반복
+        }
+
+        function stopPulseAnimation() {
+          clearInterval(pulseInterval);
+          if (jobCards.length > 0) {
+            jobCards[0].classList.remove("pulse");
+          }
+        }
+
+        // 모든 카드의 초기 애니메이션(fadeInUp)이 끝난 후에 펄스 시작
+        setTimeout(() => {
+          startPulseAnimation();
+        }, 1500); // 1.5초 지연
+
+        jobCards.forEach((card) => {
+          card.addEventListener("click", function () {
+            if (this.classList.contains("pulse")) {
+              stopPulseAnimation();
+            }
+            this.classList.toggle("selected");
+            const checkbox = this.querySelector(".job-checkbox");
+            checkbox.checked = !checkbox.checked;
+            updateButtonState();
+          });
+        });
+
+        function updateButtonState() {
+          const selectedCards = document.querySelectorAll(".job-card.selected");
+          if (selectedCards.length > 0) {
+            stopPulseAnimation();
+            submitButton.classList.add("visible");
+            submitButton.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> ${selectedCards.length}개 공고로 리포트 생성`;
+          } else {
+            startPulseAnimation();
+            submitButton.classList.remove("visible");
+          }
+        }
+
+        form.addEventListener("submit", function () {
+          submitButton.disabled = true;
+          submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 리포트 생성 중...`;
+        });
+      });
+    </script>
+  </body>
+</html>

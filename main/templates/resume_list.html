@@ -1,225 +1,453 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>이력서 목록</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <!-- Google Fonts: Pretendard (가독성이 좋은 한글 폰트) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-        /* 
-           ==============================================
-             이력서 목록 페이지 V2: 고급 & 동적 디자인
-           ==============================================
-        */
+      /* 기존 사이드바와 조화를 이루는 디자인 시스템 */
+      :root {
+        --primary-color: #000080; /* 네이비 (사이드바와 동일) */
+        --primary-light: #e6e6ff;
+        --text-primary: #1a2b48;
+        --text-secondary: #6c757d;
+        --border-color: #dee2e6;
+        --background-color: #f4f4f8; /* 밝은 회색 배경 */
+        --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.04),
+          0 1px 3px rgba(0, 0, 0, 0.08);
+        --card-hover-shadow: 0 10px 15px rgba(0, 0, 128, 0.1),
+          0 4px 6px rgba(0, 0, 128, 0.1);
+      }
+      body {
+        background-color: var(--background-color);
+        font-family: "Pretendard", sans-serif;
+        color: var(--text-primary);
+        padding-left: 80px; /* 사이드바 기본 너비 */
+        padding-bottom: 120px; /* 하단 버튼 공간 */
+        transition: padding-left 0.3s ease-in-out;
+      }
+      /* JS가 아닌 CSS로 사이드바 호버 상태 감지 (더 안정적) */
+      body:has(.sidebar:hover) {
+        padding-left: 240px;
+      }
 
-        :root {
-            --primary-color: #0056b3; /* Figma의 파란색보다 약간 더 깊은 색 */
-            --light-gray: #f8f9fa;
-            --text-color: #343a40;
-            --border-color: #dee2e6;
-            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08);
-            --card-hover-shadow: 0 10px 15px rgba(0, 86, 179, 0.1), 0 4px 6px rgba(0, 86, 179, 0.1);
-        }
+      .content-area {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 50px 20px;
+      }
 
-        body {
-            background-color: var(--light-gray);
-            font-family: 'Pretendard', sans-serif;
-            padding-left: 80px; /* 사이드바 기본 너비만큼 공간 확보 */
-            transition: padding-left 0.3s ease-in-out;
-            color: var(--text-color);
-        }
-        
-        .content-area {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 50px 20px;
-        }
+      .header-container {
+        margin-bottom: 40px;
+        text-align: center;
+        position: relative;
+        min-height: 5rem;
+      }
+      .page-title,
+      .page-prompt {
+        position: absolute;
+        width: 100%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+      .page-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        opacity: 1;
+      }
+      .selection-mode .page-title {
+        opacity: 0;
+        transform: translate(-50%, -70%);
+      }
 
-        .page-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 40px;
-            text-align: center;
-            color: #1a2b48;
-        }
+      .page-prompt {
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        border-radius: 12px;
+        padding: 20px 30px;
+        font-size: 1.2rem;
+        font-weight: 600;
+        opacity: 0;
+        transform: translate(-50%, -30%);
+      }
+      .selection-mode .page-prompt {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
 
-        .resume-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 25px;
-        }
+      .resume-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 25px;
+      }
+      .resume-card,
+      .add-resume-card {
+        background-color: white;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 2px solid transparent;
+        position: relative;
+      }
+      .resume-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--card-hover-shadow);
+      }
+      .add-resume-card {
+        border: 2px dashed var(--border-color);
+        color: #868e96;
+        text-decoration: none;
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+      .add-resume-card:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        background-color: #fcfdff;
+      }
 
-        /* ★★★ 동적 요소 1: 카드 등장 애니메이션 ★★★ */
-        @keyframes slideUpFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+      .resume-info h5 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .resume-info p {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin: 0;
+      }
+      .card-actions {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        background: linear-gradient(to left, white 70%, transparent);
+        padding: 0 30px 0 50px;
+        transform: translateX(100%); /* 평소에는 카드 밖으로 숨김 */
+        transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        gap: 15px;
+      }
+      .resume-card:hover .card-actions {
+        transform: translateX(0); /* 호버 시 카드 안으로 슬라이드 */
+      }
+      /* 선택 모드에서는 슬라이드 되지 않도록 함 */
+      .selection-mode .resume-card:hover .card-actions {
+        transform: translateX(100%);
+      }
 
-        .resume-card, .add-resume-card {
-            background-color: white;
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: var(--card-shadow);
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            
-            /* 애니메이션 적용 */
-            animation: slideUpFadeIn 0.6s ease-out forwards;
-            opacity: 0; /* 애니메이션 시작 전에는 숨김 */
-            animation-fill-mode: backwards; /* 애니메이션이 시작되기 전부터 from 상태를 적용 */
+      .btn-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        background-color: #f1f3f5;
+        color: #868e96;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+      .btn-action:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .btn-action.edit:hover {
+        background-color: #dbe4ff;
+        color: var(--edit-color);
+      }
+      .btn-action.delete:hover {
+        background-color: #ffe3e3;
+        color: var(--delete-color);
+      }
+      .selection-mode .resume-card {
+        cursor: pointer;
+      }
+      .resume-card.selected {
+        transform: translateY(-4px);
+        box-shadow: 0 0 0 3px var(--primary-color), var(--card-hover-shadow);
+        border-color: var(--primary-color);
+      }
+      /* 가상 요소(::after)를 사용하여 체크 아이콘 생성 */
+      .resume-card::after {
+        content: "\f00c"; /* Font Awesome 체크 아이콘 유니코드 */
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        /* 평소에는 투명하고 작게 만들어 숨김 */
+        opacity: 0;
+        transform: scale(0.5) rotate(-15deg);
+        transition: all 0.3s ease-out;
+      }
+      /* 선택 모드에서 선택된 카드에만 체크 아이콘을 보여줌 */
+      .selection-mode .resume-card.selected::after {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
 
-            /* 각 카드에 순차적으로 딜레이를 줌 (CSS 변수 활용) */
-            animation-delay: calc(var(--animation-order) * 100ms);
-        }
-
-        /* ★★★ 동적 요소 2: 카드 호버 효과 (살짝 떠오르는 느낌) ★★★ */
-        .resume-card:hover {
-            transform: translateY(-6px);
-            box-shadow: var(--card-hover-shadow);
-        }
-
-        .resume-info h5 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        .resume-info p {
-            font-size: 0.9rem;
-            color: #6c757d;
-            margin: 0;
-        }
-        
-        .card-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .btn-action {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%; /* 원형 버튼 */
-            border: none;
-            background-color: #f1f3f5;
-            color: #868e96;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .btn-action.edit:hover {
-            background-color: #dbe4ff;
-            color: #3366ff;
-        }
-        
-        .btn-action.delete:hover {
-            background-color: #ffe3e3;
-            color: #e03131;
-        }
-        
-        /* '이력서 추가하기' 카드 스타일 */
-        .add-resume-card {
-            border: 2px dashed var(--border-color);
-            color: #868e96;
-            text-decoration: none;
-            font-size: 1.2rem;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .add-resume-card:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-            background-color: #fcfdff;
-            transform: translateY(-6px);
-            box-shadow: var(--card-hover-shadow);
-        }
-
-        .add-resume-card .plus-icon {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-
-        .is-visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
+      .report-fab-container {
+        position: fixed;
+        bottom: 30px;
+        left: calc(50% + 40px); /* 80px/2 */
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 600px;
+        z-index: 999;
+        opacity: 0;
+        transform: translate(-50%, 20px);
+        transition: all 0.3s ease-in-out;
+        pointer-events: none;
+      }
+      body:has(.sidebar:hover) .report-fab-container {
+        left: calc(50% + 120px); /* 240px/2 */
+      }
+      .report-fab-container.visible {
+        opacity: 1;
+        transform: translateX(-50%);
+        pointer-events: auto;
+      }
+      #generate-report-btn {
+        width: 100%;
+        padding: 18px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        background-color: #a9a9d4;
+        color: #eef2ff;
+        cursor: not-allowed;
+        transition: all 0.3s;
+      }
+      #generate-report-btn:not(:disabled) {
+        background-color: var(--primary-color);
+        color: white;
+        cursor: pointer;
+      }
     </style>
-</head>
-<body class="resume-page">
-    {% include '_sidebar.html' %}
+  </head>
+  <!-- body에 resume-page 클래스를 추가하여 사이드바 배경색을 활성화합니다 -->
+  <body class="resume-page">
+    <!-- 가지고 계신 _sidebar.html과 메시지용 _messages.html을 include 합니다 -->
+    {% include '_sidebar.html' %} {% include '_messages.html' %}
 
     <div class="content-area">
-        <h1 class="page-title">이력서 목록</h1>
+      <div class="header-container">
+        <h1 class="page-title">내 이력서 목록</h1>
+        <div class="page-prompt" id="page-prompt-message"></div>
+      </div>
 
-        <div class="resume-grid">
-            <!-- 이력서 추가하기 카드 -->
-            <a href="{% url 'resume_add' %}" class="add-resume-card" style="--animation-order: 1;">
-                <span>새 이력서 추가하기</span>
-                <span class="plus-icon">+</span>
-            </a>
-
-            <!-- 저장된 이력서 목록 -->
-            {% for resume in resumes %}
-                <!-- ★★★ 동적 요소 3: forloop.counter를 이용한 순차적 애니메이션 딜레이 ★★★ -->
-                <div class="resume-card" style="--animation-order: {{ forloop.counter|add:1 }};">
-                    <div class="resume-info">
-                        <h5>{{ resume.title }}</h5>
-                        <p>마지막 수정: {{ resume.updated_at|date:"Y년 m월 d일 H:i" }}</p>
-                    </div>
-                    <div class="card-actions">
-                        <!-- 수정 버튼 (아이콘으로 변경) -->
-                        <a href="{% url 'resume_edit' resume.id %}" class="btn-action edit" title="수정">
-                            <i class="fas fa-pencil-alt"></i>
-                        </a>
-                        
-                        <!-- 삭제 버튼 (아이콘으로 변경 & form으로 감싸기) -->
-                        <form action="{% url 'resume_delete' resume.id %}" method="post" onsubmit="return confirm('정말 이 이력서를 삭제하시겠습니까?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn-action delete" title="삭제">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            {% empty %}
-                <p class="text-center mt-5">아직 작성된 이력서가 없습니다. 새 이력서를 추가해보세요!</p>
-            {% endfor %}
+      <div class="resume-grid">
+        <a
+          href="{% url 'resume_add' %}"
+          class="add-resume-card"
+          id="add-resume-card"
+        >
+          <span>새 이력서 추가하기</span>
+          <span style="font-size: 1.5rem">+</span>
+        </a>
+        {% for resume in resumes %}
+        <div class="resume-card" data-id="{{ resume.id }}">
+          <div class="resume-info">
+            <h5>{{ resume.title }}</h5>
+            <p>마지막 수정: {{ resume.updated_at|date:"Y년 m월 d일 H:i" }}</p>
+          </div>
+          <div class="card-actions">
+            <a
+              href="{% url 'resume_edit' resume.id %}"
+              class="btn-action edit"
+              title="수정"
+              ><i class="fas fa-pencil-alt"></i
+            ></a>
+            <form
+              action="{% url 'resume_delete' resume.id %}"
+              method="post"
+              onsubmit="return confirm('정말 삭제하시겠습니까?');"
+            >
+              {% csrf_token %}
+              <button type="submit" class="btn-action delete" title="삭제">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </div>
         </div>
+        {% empty %}
+        <p class="text-center mt-5 text-muted">
+          아직 작성된 이력서가 없습니다. 새 이력서를 추가해보세요.
+        </p>
+        {% endfor %}
+      </div>
     </div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const animatedCards = document.querySelectorAll('.resume-card, .add-resume-card');
 
-            animatedCards.forEach(card => {
-                // 'animationend' 이벤트는 CSS 애니메이션이 끝났을 때 발생합니다.
-                card.addEventListener('animationend', () => {
-                    // 애니메이션이 끝나면, 애니메이션 관련 스타일을 제거하고
-                    // 최종 상태를 보장하는 is-visible 클래스를 추가합니다.
-                    card.style.animation = 'none';
-                    card.classList.add('is-visible');
-                });
-            });
+    <!-- 하단 고정 버튼 -->
+    <div class="report-fab-container" id="report-fab">
+      <button id="generate-report-btn" disabled>
+        리포트 생성할 이력서를 선택해주세요.
+      </button>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const body = document.body;
+        const reportFab = document.getElementById("report-fab");
+        const generateBtn = document.getElementById("generate-report-btn");
+        const resumeCards = document.querySelectorAll(".resume-card");
+        const addResumeCard = document.getElementById("add-resume-card");
+        const promptMessage = document.getElementById("page-prompt-message");
+
+        const startRecommendBtn = document.getElementById(
+          "start-recommend-report"
+        );
+        const startJobSearchBtn = document.getElementById(
+          "start-job-search-report"
+        );
+        const allSidebarLinks = document.querySelectorAll(
+          ".nav-menu .nav-item a"
+        );
+
+        let currentReportFlow = null;
+
+        function deactivateAllModes() {
+          body.classList.remove("selection-mode");
+          reportFab.classList.remove("visible");
+          addResumeCard.style.display = "flex";
+          resumeCards.forEach((card) => card.classList.remove("selected"));
+          allSidebarLinks.forEach((link) => link.classList.remove("active"));
+          currentReportFlow = null;
+          updateGenerateButtonState();
+        }
+
+        function activateMode(button, flowType) {
+          button.classList.add("active");
+          currentReportFlow = flowType;
+          body.classList.add("selection-mode");
+          reportFab.classList.add("visible");
+          if (flowType === "recommend") {
+            promptMessage.textContent = "AI 추천을 받을 이력서를 선택하세요.";
+          } else if (flowType === "job-search") {
+            promptMessage.textContent = "검색에 사용할 이력서를 선택하세요.";
+          }
+          addResumeCard.style.display = "none";
+          updateGenerateButtonState();
+        }
+
+        function setupSidebarToggle(button, flowType) {
+          if (!button) return;
+          button.addEventListener("click", (e) => {
+            e.preventDefault();
+            const isAlreadyActive = button.classList.contains("active");
+            deactivateAllModes();
+            if (!isAlreadyActive) {
+              activateMode(button, flowType);
+            }
+          });
+        }
+
+        setupSidebarToggle(startRecommendBtn, "recommend");
+        setupSidebarToggle(startJobSearchBtn, "job-search");
+
+        function updateGenerateButtonState() {
+          const selectedCards = document.querySelectorAll(
+            ".resume-card.selected"
+          );
+          generateBtn.disabled = selectedCards.length === 0;
+          if (selectedCards.length > 0) {
+            let btnText = "";
+            if (currentReportFlow === "recommend") {
+              btnText = `선택한 이력서로 AI 추천 받기`;
+            } else if (currentReportFlow === "job-search") {
+              btnText = `선택한 이력서로 공고 검색하기`;
+            }
+            generateBtn.textContent = btnText;
+          } else {
+            generateBtn.textContent = "리포트 생성할 이력서를 선택해주세요.";
+          }
+        }
+
+        resumeCards.forEach((card) => {
+          card.addEventListener("click", (e) => {
+            if (e.target.closest(".card-actions")) return;
+            if (body.classList.contains("selection-mode")) {
+              card.classList.toggle("selected");
+              updateGenerateButtonState();
+            }
+          });
         });
+
+        // ▼▼▼▼▼ 바로 이 부분에 로딩 스피너 로직이 추가됩니다 ▼▼▼▼▼
+        generateBtn.addEventListener("click", () => {
+          if (generateBtn.disabled) return;
+
+          // ★★★ 1. 로딩 상태로 즉시 변경 ★★★
+          generateBtn.disabled = true; // 중복 클릭 방지
+          generateBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span class="ms-2">AI 추천 분석 중...</span>
+        `;
+
+          // ★★★ 2. 기존 로직 실행 ★★★
+          const selectedResumeIds = Array.from(
+            document.querySelectorAll(".resume-card.selected")
+          ).map((card) => card.dataset.id);
+          const params = new URLSearchParams({
+            resumes: selectedResumeIds.join(","),
+          });
+          let targetUrl = "";
+          if (currentReportFlow === "recommend") {
+            targetUrl = `{% url 'recommend_recommending' %}?${params.toString()}`;
+          } else if (currentReportFlow === "job-search") {
+            targetUrl = `{% url 'job_search_report' %}?${params.toString()}`;
+          }
+
+          // ★★★ 3. 페이지 이동 (이동 전까지 스피너가 보임) ★★★
+          if (targetUrl) {
+            window.location.href = targetUrl;
+          } else {
+            // 혹시 모를 예외 상황: URL이 생성되지 않으면 버튼을 원상 복구
+            generateBtn.disabled = false;
+            updateGenerateButtonState();
+          }
+        });
+        // ▲▲▲▲▲ 여기까지 수정 완료 ▲▲▲▲▲
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && body.classList.contains("selection-mode")) {
+            deactivateAllModes();
+          }
+        });
+      });
     </script>
-</body>
+  </body>
 </html>

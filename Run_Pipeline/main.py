@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import asyncio
 
 # 1단계에서 만든 Agent 생성 함수를 import 합니다.
-from .Agent_Factory import create_agent_chain
+from .Agent_Manager import create_agent_chain
 # 팀원분이 만드신 스트림 파서를 그대로 활용합니다.
 from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
 
