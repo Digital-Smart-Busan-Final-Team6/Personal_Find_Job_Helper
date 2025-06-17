@@ -2,7 +2,9 @@
 
 import time  # Agent 호출 시뮬레이션을 위한 time 모듈
 import json
+import re 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -14,6 +16,7 @@ from accounts.forms import ResumeForm
 from Run_Pipeline.Agent_Manager import get_agent_chain
 from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
 from .utils import parse_markdown_table_to_json  # utils에서 함수 호출
+
 
 # --- [View 1] 챗봇이 있는 메인 페이지 ---
 def home(request):
@@ -153,8 +156,8 @@ def job_search_report_page(request):
 
     # --- 검색어 처리 및 Agent 호출 준비 ---
     search_query = request.GET.get("query", "").strip()
-    
-    agent_response = None 
+
+    agent_response = None
 
     # 검색어가 있을 경우에만 Agent를 호출합니다.
     if search_query:
@@ -172,7 +175,7 @@ def job_search_report_page(request):
         }}
         ```
         """
-        
+
         try:
             # Agent 호출
             agent = get_agent_chain()
@@ -180,14 +183,14 @@ def job_search_report_page(request):
                 request.session.create()
             session_id = request.session.session_key
 
-            print(f'Agent 호출 시작 (구조화된 요청 전달)')
+            print(f"Agent 호출 시작 (구조화된 요청 전달)")
 
             result = agent.invoke(
                 {"input": query_for_agent},
                 config={"configurable": {"session_id": session_id}},
             )
 
-            agent_output = result.get("output", "{}") 
+            agent_output = result.get("output", "{}")
             print(f"Agent 응답 수신 완료:\n{agent_output}")
 
             # Agent가 생성한 JSON 문자열을 파싱
@@ -195,7 +198,7 @@ def job_search_report_page(request):
                 json_part = agent_output.split("```json")[1].split("```")[0].strip()
             else:
                 json_part = agent_output
-            
+
             agent_response = json.loads(json_part)
 
         except Exception as e:
@@ -204,7 +207,7 @@ def job_search_report_page(request):
             # 오류 발생 시, 템플릿에서 에러 처리를 할 수 있도록 analysis_text에 메시지 전달
             agent_response = {
                 "analysis_text": "AI 에이전트와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-                "job_list": []
+                "job_list": [],
             }
 
     # --- 템플릿에 전달할 최종 context ---
@@ -212,7 +215,7 @@ def job_search_report_page(request):
         "selected_resumes": selected_resumes,
         "resume_ids_str": resume_ids_str,
         "search_query": search_query,
-        "agent_response": agent_response, 
+        "agent_response": agent_response,
         "current_page": "resume",
         "switch_url_name": "home",
     }
@@ -356,7 +359,7 @@ def recommend_result_view(request):
     return render(request, "recommend_result.html", context)
 
 
-# --- [View 11] 최종 리포트 생성을 위한 페이지 뷰 (미래지향적 이상적 버전) ---
+# --- [View 11] 최종 리포트 생성을 위한 페이지 뷰 (최종 수정 버전) ---
 def generate_final_report_view(request):
     if request.method != "POST":
         return redirect("resume_list")
@@ -366,47 +369,85 @@ def generate_final_report_view(request):
     selected_job_ids = request.POST.getlist("selected_jobs")
 
     if not resume_ids_str or not selected_job_ids:
+        messages.error(request, "이력서와 채용 공고를 선택해야 합니다.")
         return redirect("resume_list")
 
     main_resume_id = resume_ids_str.split(",")[0]
+    selected_job_id_str = selected_job_ids[0]
 
-    simple_query = (
-        f"이력서(ID: {main_resume_id})를 기준으로, "
-        f"아래 채용 공고(ID: {', '.join(selected_job_ids)})들 각각에 대한 상세 분석 리포트를 작성해줘. "
-        f"각 공고별 분석을 모두 종합해서 하나의 최종 보고서로 만들어줘."
-    )
-
-    # --- Agent 호출  ---
-    final_report_content = "리포트 생성 중 오류가 발생했습니다."
+    # --- 화면 표시에 필요한 추가 정보 로드 ---
+    job_detail = None
     try:
-        agent = get_agent_chain()
-        if not request.session.session_key:
-            request.session.create()
-        session_id = request.session.session_key
+        job_file_path = settings.BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
+        with open(job_file_path, 'r', encoding='utf-8') as f:
+            all_jobs = json.load(f)
 
-        print(f">>> 최종 리포트 생성 Agent 호출 (궁극의 단순 요청: {simple_query})")
+        if 'postings' in all_jobs and isinstance(all_jobs['postings'], dict):
+            job_data_source = all_jobs['postings']
+        else:
+            job_data_source = all_jobs
 
-        final_result = agent.invoke(
-            {"input": simple_query}, config={"configurable": {"session_id": session_id}}
-        )
-        final_report_content = final_result.get("output", final_report_content)
-        print(">>> 최종 리포트 생성 완료")
+        job_detail = job_data_source.get(selected_job_id_str)
+
+    except Exception as e:
+        print(f"공고 정보 조회 중 오류 발생: {e}")
+
+    # --- Agent 호출 ---
+    report_markdown = "### 분석 실패\nAI 리포트 생성 중 오류가 발생했습니다."
+    try:
+        if job_detail:
+            agent = get_agent_chain()
+            if not request.session.session_key:
+                request.session.create()
+            session_id = request.session.session_key
+
+            simple_query = f"채용 공고 {selected_job_id_str}에 대한 상세 분석 리포트를 작성해줘."
+            
+            print(f">>> 최종 리포트 생성 Agent 호출 (Query: {simple_query})")
+            final_result = agent.invoke(
+                {"input": simple_query}, config={"configurable": {"session_id": session_id}}
+            )
+            
+            # ★★★★★★★★★★★★★★★ 핵심 수정 부분 ★★★★★★★★★★★★★★★
+            # 1. AI가 생성한 '친절한 문장 전체'를 가져옵니다.
+            agent_output = final_result.get("output", "")
+            
+            # 2. 정규 표현식을 사용해 문장 속에서 'Reports/...' 형태의 파일 경로만 추출합니다.
+            #    슬래시(/)와 역슬래시(\\)를 모두 처리할 수 있도록 패턴을 작성합니다.
+            match = re.search(r"Reports[/\\]job_report_[\w-]+\.md", agent_output)
+            
+            # 3. 파일 경로를 성공적으로 추출했다면,
+            if match:
+                # 추출한 경로(예: 'Reports\\job_report_...md')를 사용합니다.
+                report_file_path_str = match.group(0)
+                report_full_path = settings.BASE_DIR / report_file_path_str
+                
+                # 파일을 열어서 내용을 읽습니다.
+                with open(report_full_path, 'r', encoding='utf-8') as f:
+                    report_markdown = f.read()
+                print(f"성공: 리포트 파일 '{report_file_path_str}'의 내용을 읽었습니다.")
+            else:
+                # 만약 문장에서 파일 경로를 찾지 못했다면, AI의 답변을 그대로 보여줍니다.
+                report_markdown = f"### 분석 결과\nAI가 리포트 파일을 생성했지만, 경로를 찾을 수 없습니다.\n\n**AI 응답 원문:**\n```\n{agent_output}\n```"
+                print(f"경고: AI 응답에서 파일 경로를 찾지 못했습니다. 원문: {agent_output}")
+            # ★★★★★★★★★★★★★★★ 수정 끝 ★★★★★★★★★★★★★★★
+
+        else:
+            report_markdown = "### 분석 실패\n요청하신 채용 공고 정보를 찾을 수 없어 AI 분석을 진행할 수 없습니다."
 
     except Exception as e:
         print(f"최종 리포트 생성 중 오류 발생: {e}")
-        final_report_content = (
-            f"AI 분석 중 오류가 발생하여 리포트를 생성할 수 없습니다.\n\n오류: {e}"
-        )
+        report_markdown = f"### 리포트 생성 오류\nAI 분석 중 오류가 발생했습니다.\n\n**오류:** `{e}`"
 
     # --- 결과 렌더링 ---
-    # 템플릿에 전달하기 위해 이력서 객체는 DB에서 다시 조회
     resumes = Resume.objects.filter(id__in=resume_ids_str.split(","))
 
     context = {
         "resumes": resumes,
-        "report_content": final_report_content,
+        "selected_job_id": selected_job_id_str,
+        "job_detail": job_detail,
+        "report_markdown": report_markdown,
         "current_page": "resume",
         "switch_url_name": "home",
     }
-
     return render(request, "report_detail.html", context)
