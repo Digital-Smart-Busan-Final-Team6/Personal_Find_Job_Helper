@@ -99,6 +99,48 @@ class AgentTools:
         ("placeholder", "{agent_scratchpad}"),
     ])
 
+    from langchain_core.prompts import ChatPromptTemplate
+
+    react_prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """
+    🔹 역할 & 톤
+    당신은 신뢰할 수 있는 취업 전문가 AI 코치입니다.  
+    한국어로 친절하게 답변하되, 채용/이력서/면접/회사 정보/채용 관련 기사 같은 질문에만 응답합니다.  
+
+    {tools}          
+    (툴 이름 목록: {tool_names}) 
+
+    🔹 Tool 사용 규칙
+    1. 문서 기반 답이 가능할 것 같으면 **반드시** `document_search`를 먼저 호출한다.
+    2. 결과가 0개이거나 질문과 무관하면 `search_web`을 호출한다.
+    3. '평균·그래프·통계' 등 데이터 분석 → `job_dataframe_analysis`
+    4. '내 이력서' 직접 언급 → `resume_qa`
+    5. '가장 적합한 공고 추천' → `find_best_job_match`
+    6. 그 밖엔 Tool 없이 자체 지식으로 답한다.
+
+    🔹 포맷 (★ ReAct 필수)
+    - <모델의 내부 사고>는 **Thought:** 로 시작  
+    - Tool 호출은 **Action:** Tool이름 {{ JSON 인자 }}  
+    - Observation 다음 다시 Thought → Action … 또는 **Final Answer:** 로 종료
+
+    예시)
+    Thought: "채용 공고에 있을 것 같다"
+    Action: document_search {{ "query": "삼성전자 백엔드 신입 연봉" }}
+    Observation: "연봉 5,400만원~ …"
+    Thought: "바로 답할 수 있다"
+    Final Answer: "삼성전자 백엔드 신입 초봉은 …"
+                """,
+            ),
+            ("placeholder", "{chat_history}"),
+            ("human", "{input}"),
+            ("placeholder", "{agent_scratchpad}"),
+            # {tool_names}를 위에서 이미 사용했으므로 여기엔 더 안 넣어도 됨
+        ]
+    )
+
     # --------------------------------------------------
     @staticmethod
     def get_tools(*, retriever: Any, llm) -> List[Tool]:
@@ -153,7 +195,7 @@ class AgentTools:
             logging.warning("LLM is None – dataframe 툴 비활성화.")
             return None
 
-        data_path = BASE_DIR / "Data_Files" / "wanted_detail_improve_20250604.json"
+        data_path = BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
         if not data_path.exists():
             logging.warning("DataFrame 파일을 찾을 수 없음 – dataframe 툴 비활성화.")
             return None
@@ -281,8 +323,8 @@ class AgentTools:
         실제로는 무시하거나 Top-K 개수 정도만 파싱해 써도 된다.
         """
         DATA_DIR = BASE_DIR / "Data_Files"
-        JOB_POST_FILE = DATA_DIR / "wanted_detail_improve_20250604.json"
-        RESUME_FILE = DATA_DIR / "resume_sample.json"
+        JOB_POST_FILE = DATA_DIR / "wanted_detail_improve_20250616.json"
+        RESUME_FILE = DATA_DIR / "resume.json"
         SBERT_MODEL_NAME = AgentTools.SBERT_MODEL_NAME  # 클래스 상수 재사용
 
         # ── ① 공통 리소스: 모델과 JSON을 한 번만 로드 ──────────────────
@@ -403,7 +445,7 @@ class AgentTools:
             func=_find_best_job_match,
             name="find_best_job_match",
             description=(
-                "사용자 이력서(resume.json)와 채용 공고(wanted_detail_improve_20250604.json)를 비교해 "
+                "사용자 이력서(resume.json)와 채용 공고(wanted_detail_improve_20250616.json)를 비교해 "
                 "가장 적합한 공고 상위 5개를 표 형태로 반환한다."
             ),
         )
