@@ -43,4 +43,6 @@ class Resume(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.title} ({self.user.username})"
+        if self.user:
+            return f"{self.title} ({self.user.username})"
+        return f"{self.title} (No User)"

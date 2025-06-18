@@ -28,7 +28,7 @@ def main(return_chain_only: bool = False):
 
         kind = "json"
         file_path = BASE_DIR / os.getenv("DATA_PATH")
-        chunk_size = 1000
+        chunk_size = 512
         overlap_size = 50
         device = "mps"
         persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"

@@ -8,6 +8,7 @@ from langchain.agents import Tool
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain.tools.retriever import create_retriever_tool
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import StructuredTool
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_community.utilities.dalle_image_generator import DallEAPIWrapper
 from langchain_community.agent_toolkits import FileManagementToolkit
@@ -15,6 +16,8 @@ import json
 import re
 from sentence_transformers import SentenceTransformer, util
 import torch  # torch 임포트 유지 (SBERT 내부 사용)
+from pydantic import BaseModel, Field
+from typing import Any, Dict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -145,12 +148,12 @@ class AgentTools:
     @staticmethod
     def get_tools(*, retriever: Any, llm) -> List[Tool]:
         tools = [
-            AgentTools._create_search_tool(),
             AgentTools._create_retriever_tool(retriever),
+            AgentTools._create_search_tool(),
             AgentTools._create_dataframe_tool(llm),
             AgentTools._create_image_generation_tool(),
             AgentTools._create_resume_tool(llm),
-            AgentTools._create_job_match_tool(retriever),
+            AgentTools._create_job_match_tool(),
             AgentTools._create_analysis_report_tool(llm)
         ]
 
@@ -315,19 +318,16 @@ class AgentTools:
 
     # 7) 이력서-공고 매칭 툴  ← 새로 추가
     @staticmethod
-    def _create_job_match_tool(retriever: Any) -> Tool:
+    def _create_job_match_tool() -> Tool:
         """
-        사용자의 이력서(JSON)와 채용 공고(JSON)를 읽어
-        가장 적합한 공고 1~N개를 추천한다.
-        query 인자는 외부에서 아무 문자열이나 넘어오므로
-        실제로는 무시하거나 Top-K 개수 정도만 파싱해 써도 된다.
+        사용자의 이력서 데이터를 외부에서 받아서
+        가장 적합한 공고 상위 5개를 Markdown 표로 반환합니다.
         """
         DATA_DIR = BASE_DIR / "Data_Files"
         JOB_POST_FILE = DATA_DIR / "wanted_detail_improve_20250616.json"
-        RESUME_FILE = DATA_DIR / "resume.json"
-        SBERT_MODEL_NAME = AgentTools.SBERT_MODEL_NAME  # 클래스 상수 재사용
+        SBERT_MODEL_NAME = AgentTools.SBERT_MODEL_NAME
 
-        # ── ① 공통 리소스: 모델과 JSON을 한 번만 로드 ──────────────────
+        # 모델 캐시
         import functools
         @functools.lru_cache(maxsize=1)
         def _load_model() -> SentenceTransformer:
@@ -338,63 +338,67 @@ class AgentTools:
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
 
-        # ── ② 점수 계산 유틸리티 ──────────────────────────────────────
-        def _combine_resume(resume: dict) -> tuple[str, int, list[str]]:
-
-            # 1) 프롬프트용 텍스트 한데 묶기
+        # 이력서 dict를 텍스트/년수/스택 리스트로 변환
+        def _combine_resume(data: dict) -> tuple[str, int, list[str]]:
             text = (
-                f"학력: {resume.get('university', '')} {resume.get('major', '')} "
-                f"{resume.get('education_status', '')} 학점 {resume.get('gpa', '')}. "
-                f"희망 직무: {', '.join(resume.get('job_interests', []))}. "
-                f"희망 지역: {', '.join(resume.get('location_interests', []))}. "
-                f"보유 기술: {resume.get('skills', '')}."
+                f"학력: {data.get('education_level', '')} / {data.get('university', '')} {data.get('major', '')} (GPA {data.get('gpa', '')})\n"
+                f"경력: {data.get('experience_years', 0)}년\n"
+                f"보유 기술: {data.get('skills', '')}\n"
+                f"희망 직무: {data.get('job', '')}\n"
+                f"희망 근무지: {data.get('location', '')}\n"
+                f"기타 경험: {data.get('experience', '')}\n"
+                f"자격증/어학: {data.get('certifications', '')}"
             ).strip()
-
-            # 2) 경력 기간(년) – 새 스키마에 없으므로 0 으로 두거나 추가 필드가 있으면 파싱
-            years = 0  # resume.get("experience_years", 0)  같은 식으로 추후 보강 가능
-
-            # 3) 기술 스택 리스트 추출
-            stacks = [s.strip().lower() for s in resume.get("skills", "").split(",") if s.strip()]
-            AgentTools.RESUME_JOB_ROLE_KEYWORDS = [kw.lower() for kw in resume.get("job_interests", [])]
+            years = data.get('experience_years', 0)
+            stacks = [s.strip().lower() for s in data.get('skills', '').split(',') if s.strip()]
+            # 직무 키워드
+            AgentTools.RESUME_JOB_ROLE_KEYWORDS = [
+                kw.strip().lower() for kw in data.get('job', '').split(',') if kw.strip()
+            ]
             return text, years, stacks
 
+        # 공고 dict를 텍스트로 변환
         def _combine_job(job: dict) -> str:
             return (
-                f"제목: {job.get('제목', '')}. "
-                f"회사 소개: {job.get('회사 소개', '')}. "
-                f"주요 업무: {' '.join(job.get('주요 업무', []))}. "
-                f"자격 요건: {' '.join(job.get('자격 요건', []))}. "
-                f"우대 사항: {' '.join(job.get('우대 사항', []))}."
-                f"지역: {', '.join(job.get('지역', []))}. "
+                f"제목: {job.get('제목', '')}\n"
+                f"회사 소개: {job.get('회사 소개', '')}\n"
+                f"주요 업무: {' '.join(job.get('주요 업무', []))}\n"
+                f"자격 요건: {' '.join(job.get('자격 요건', []))}\n"
+                f"우대 사항: {' '.join(job.get('우대 사항', []))}\n"
+                f"지역: {', '.join(job.get('지역', []))}"
             ).strip()
 
-        # ── ③ 실제로 호출되는 함수(Action) ───────────────────────────
-        def _find_best_job_match(query: str = "") -> str:
-            """LangChain Tool로 쓰일 함수. query 값은 사실상 사용하지 않음."""
-            # 데이터 로드
-            job_posts: dict = _load_json(JOB_POST_FILE)
-            resume_list: list = _load_json(RESUME_FILE)  # resume.json은 리스트라고 가정
-            if not resume_list:
-                return "이력서가 비어 있어 매칭을 수행할 수 없습니다."
+        # 실제 매칭 로직: resume 파라미터 없이, 바깅된 resume 변수를 바로 사용
+        def _find_best_job_match(
+                resume: Any,
+        ) -> str:
+            if isinstance(resume, str):
+                try:
+                    resume = json.loads(resume)
+                except json.decoder.JSONDecodeError:
+                    return "Error: 이력서 데이터가 올바른 JSON 형식이 아닙니다."
 
-            resume = resume_list[0]  # 첫 번째 이력서
-            resume_text, resume_years, resume_stacks = _combine_resume(resume)
+            # 1) 바인딩된 resume 변수를 쓴다
+            resume_data = resume
 
-            # 모델 & 이력서 임베딩
+            # 2) 이력서 → 임베딩
+            resume_text, resume_years, resume_stacks = _combine_resume(resume_data)
             model = _load_model()
             resume_emb = model.encode(resume_text, convert_to_tensor=True)
 
-            scores = []
+            # 3) 공고들 로드 및 점수 계산
+            job_posts = _load_json(JOB_POST_FILE)
+            scores: list[tuple[float, str, str]] = []
             for job_id, job in job_posts.items():
                 job_text = _combine_job(job)
                 job_emb = model.encode(job_text, convert_to_tensor=True)
 
-                # ① 의미적 유사성
+                # 의미적 유사도
                 cosine_score = util.cos_sim(resume_emb, job_emb).item()
 
-                # ② 경력
-                min_exp = job.get("요구 최소 경력", 0)
-                max_exp = job.get("요구 최대 경력", 999)
+                # 경력 점수
+                min_exp = job.get('요구 최소 경력', 0)
+                max_exp = job.get('요구 최대 경력', 999)
                 if min_exp <= resume_years <= max_exp:
                     exp_score = 1.0
                 elif resume_years > max_exp:
@@ -402,103 +406,137 @@ class AgentTools:
                 else:
                     exp_score = 0.0
 
-                # ③ 기술 스택
-                job_stacks = [s.strip().lower() for s in job.get("기술 스택", [])]
+                # 기술 스택 점수
+                job_stacks = [s.strip().lower() for s in job.get('기술 스택', [])]
                 if job_stacks:
                     matched = sum(1 for s in resume_stacks if s in job_stacks)
                     tech_score = matched / len(job_stacks)
                 else:
-                    tech_score = 0.5  # 공고에 명시가 없으면 중립
+                    tech_score = 0.5
 
-                # ④ 직군
-                job_role = job.get("직군", "").lower()
-                job_jobs = [d.lower() for d in job.get("직무", [])]
-                role_score = (
-                    1.0
-                    if any(k in job_role or any(k in jj for jj in job_jobs)
-                           for k in AgentTools.RESUME_JOB_ROLE_KEYWORDS)
-                    else 0.0
-                )
+                # 직군 점수
+                job_role = job.get('직군', '').lower()
+                job_jobs = [d.lower() for d in job.get('직무', [])]
+                role_score = 1.0 if any(
+                    k in job_role or any(k in jj for jj in job_jobs)
+                    for k in AgentTools.RESUME_JOB_ROLE_KEYWORDS
+                ) else 0.0
 
+                # 최종 점수
                 total = (
                         cosine_score * AgentTools.WEIGHT_COSINE_SIMILARITY +
                         exp_score * AgentTools.WEIGHT_EXPERIENCE_MATCH +
                         tech_score * AgentTools.WEIGHT_TECH_STACK_MATCH +
                         role_score * AgentTools.WEIGHT_JOB_ROLE_MATCH
                 )
+                scores.append((total, job_id, job.get('제목', '')))
 
-                scores.append((total, job_id, job["제목"]))
-
-            # 상위 10개 정렬
-            top = sorted(scores, reverse=True)[:5]
-            if not top:
+            # 4) 상위 5개 선택 및 Markdown 표로 반환
+            top5 = sorted(scores, key=lambda x: x[0], reverse=True)[:5]
+            if not top5:
                 return "채용 공고가 없습니다."
-
-            # 출력 포맷: Markdown 표
             lines = ["|순위|공고 ID|제목|적합도|", "|---|---|---|---|"]
-            for rank, (score, jid, title) in enumerate(top, 1):
+            for rank, (score, jid, title) in enumerate(top5, start=1):
                 lines.append(f"|{rank}|{jid}|{title}|{score:.4f}|")
             return "\n".join(lines)
 
-        # ── ④ LangChain Tool 래핑 ────────────────────────────────────
         return Tool.from_function(
             func=_find_best_job_match,
             name="find_best_job_match",
-            description=(
-                "사용자 이력서(resume.json)와 채용 공고(wanted_detail_improve_20250616.json)를 비교해 "
-                "가장 적합한 공고 상위 5개를 표 형태로 반환한다."
-            ),
+            description="""
+                    사용자 이력서를 받아 가장 적합한 공고 상위 5개를 표 형태로 반환합니다.
+                    사용법: 사용자로부터 받은 이력서 JSON 데이터를 resume 파라미터에 전달하세요.
+                    예: find_best_job_match(resume={"education_level": "대졸", "skills": "Python, Django", ...})
+                    """,
         )
 
     @staticmethod
-    def _create_analysis_report_tool(llm):
-        DATA_DIR = BASE_DIR / "Data_Files"
-        with open(DATA_DIR / "resume.json", "r", encoding="utf-8") as f:
-            resume = json.load(f)
+    def _create_analysis_report_tool(llm) -> StructuredTool:
+        """
+        뷰에서 전달된 resume, job 두 개 인자를 받아,
+        내부 코어 함수에 전달하는 래퍼를 StructuredTool로 등록합니다.
+        """
 
-        resume_my = resume[0]
+        # 입력 스키마 정의
+        class JobAnalysisInput(BaseModel):
+            resume: Dict[str, Any] = Field(description="사용자의 이력서 JSON 데이터")
+            job: Dict[str, Any] = Field(description="채용공고 JSON 데이터")
 
-        def _write_job_report(
-                depth: str = "detailed",  # 'quick' or 'detailed'
-                fmt: str = "md") -> str:
-            # 3) LLM 프롬프트
-            prompt = f"""
-            # 역할
-            당신은 취업 컨설턴트이자 채용 공고 분석 전문가입니다.
+        def _write_job_report(resume: Dict[str, Any], job: Dict[str, Any]) -> str:
+            try:
+                # Resume 텍스트 포맷 (안전한 접근)
+                resume_text = (
+                    f"교육: {resume.get('education_level', 'N/A')} / "
+                    f"{resume.get('university', 'N/A')} {resume.get('major', 'N/A')} "
+                    f"(GPA {resume.get('gpa', 'N/A')})\n"
+                    f"경력: {resume.get('experience_years', 0)}년\n"
+                    f"보유 기술: {resume.get('skills', 'N/A')}\n"
+                    f"희망 직무: {resume.get('job', 'N/A')}\n"
+                    f"희망 근무지: {resume.get('location', 'N/A')}\n"
+                    f"기타 경험: {resume.get('experience', 'N/A')}\n"
+                    f"자격증/어학: {resume.get('certifications', 'N/A')}"
+                )
 
-            ## Resume
-            {resume_my}
+                # Job 텍스트 포맷 (안전한 리스트 처리)
+                def safe_join(data, default="N/A"):
+                    if isinstance(data, list):
+                        return ' '.join(str(item) for item in data) if data else default
+                    elif isinstance(data, str):
+                        return data
+                    else:
+                        return default
 
-            # 포함 항목
-            1. 공고 요약
-            2. 요구 사항 표
-            3. 매칭 분석 (강점 / 부족 / 중립)
-            4. 개선 액션 플랜
-            5. 예상 면접 질문 5개 (키워드)
+                job_text = (
+                    f"제목: {job.get('제목', 'N/A')}\n"
+                    f"회사명: {job.get('회사명', 'N/A')}\n"
+                    f"포지션 설명: {job.get('포지션 상세 설명', 'N/A')[:200]}...\n"  # 너무 길면 자름
+                    f"주요 업무: {safe_join(job.get('주요 업무'))}\n"
+                    f"자격 요건: {safe_join(job.get('자격 요건'))}\n"
+                    f"우대 사항: {safe_join(job.get('우대 사항'))}\n"
+                    f"근무지: {job.get('근무지', 'N/A')} {job.get('지역', 'N/A')}\n"
+                    f"최소 경력: {job.get('요구 최소 경력', 'N/A')}년"
+                )
 
-            # 형식
-            * Markdown
-            * 분량: {"약 600자" if depth == "quick" else "약 1200~1600자"}
-            """
+                # LLM 프롬프트 구성
+                prompt = f"""
+    당신은 취업 컨설턴트이자 채용 공고 분석 전문가입니다.
 
-            report_md = llm.invoke(prompt).content.strip()
+    ## Resume 정보
+    {resume_text}
 
-            # 4) 저장 (원하면 PDF 변환도)
-            from datetime import datetime
-            p = Path("Reports") / f"job_report_{datetime.now():%Y%m%d_%H%M%S}.md"
-            p.parent.mkdir(exist_ok=True)
-            p.write_text(report_md, encoding="utf-8")
+    ## Job Posting 정보
+    {job_text}
 
-            if fmt in {"pdf", "docx"} and shutil.which("pandoc"):
-                out = p.with_suffix(f".{fmt}")
-                import subprocess
-                subprocess.run(["pandoc", str(p), "-o", str(out)])
-                p = out
+    ### 리포트에 포함할 내용
+    1. 공고 요약
+    2. 요구 사항 표
+    3. 매칭 분석 (강점 / 부족 / 중립)
+    4. 개선 액션 플랜
+    5. 예상 면접 질문 5개 (키워드)
 
-            return str(p)
+    ### 출력 형식
+    * Markdown 형식
+    * 분량: 약 1200~1600자
+    """.strip()
 
-        return Tool.from_function(
+                # LLM 호출 및 안전한 응답 처리
+                response = llm.invoke(prompt)
+
+                if hasattr(response, 'content') and response.content:
+                    return response.content.strip()
+                else:
+                    return "리포트 생성 중 오류가 발생했습니다. 응답을 받을 수 없습니다."
+
+            except Exception as e:
+                return f"리포트 생성 중 오류가 발생했습니다: {str(e)}"
+
+        # StructuredTool 등록
+        return StructuredTool.from_function(
             func=_write_job_report,
             name="write_job_report",
-            description="job_id에 해당하는 공고를 RAG로 불러와 상세 분석 리포트를 작성한다.",
+            description=(
+                "사용자의 이력서와 채용 공고를 분석하여 매칭 리포트를 작성합니다. "
+                "resume과 job 두 개의 파라미터를 모두 전달해야 합니다."
+            ),
+            args_schema=JobAnalysisInput
         )
