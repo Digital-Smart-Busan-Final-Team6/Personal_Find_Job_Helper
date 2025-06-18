@@ -1,31 +1,36 @@
 # main_pipeline.py
 
-from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.agents import create_tool_calling_agent, AgentExecutor, create_react_agent
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.stores import InMemoryStore
 from langchain_teddynote.messages import AgentCallbacks, AgentStreamParser
-from .Agent_Tool import *
-from .Document_Loader import DocumentLoader
-from .Document_Splitter import DocumentSplitter
-from .Embedding_DB import EmbeddingDB
-from .Env_Loader import EnvLoader
-from .LLM_Factory import LLMFactory
-from .Retriever_Builder import RetrieverBuilder
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.memory import ConversationBufferMemory
 
 
 def main(return_chain_only: bool = False):
     # ① 환경 변수 로드 (로컬 우선)
-    EnvLoader.load_local()
 
     # ② 파라미터 설정
-    BASE_DIR = Path(__file__).resolve().parent.parent
     if return_chain_only:
+        from .Agent_Tool import AgentTools
+        from .Document_Loader import DocumentLoader
+        from .Document_Splitter import DocumentSplitter
+        from .Embedding_DB import EmbeddingDB
+        from .Env_Loader import EnvLoader
+        from .LLM_Factory import LLMFactory
+        from .Retriever_Builder import RetrieverBuilder
+        from pathlib import Path
+        import os
+        EnvLoader.load_local()
+        BASE_DIR = Path(__file__).resolve().parent.parent
+
         kind = "json"
         file_path = BASE_DIR / os.getenv("DATA_PATH")
-        chunk_size = 1000
+        chunk_size = 512
         overlap_size = 50
-        device = "cuda"
+        device = "mps"
         persist_dir = BASE_DIR / os.getenv("DATA_PATH") / f"{kind}_{chunk_size}"
         retriever_mode = 4
         k = 3
@@ -44,12 +49,24 @@ def main(return_chain_only: bool = False):
         # engine_num     = int(input("LLM 모델 번호(1~4): ") or 1)
         # backend_num    = int(input("LLM 백엔드(1:OpenAI/2:Ollama/3:HF): ") or 1)
         # 빠른 실행 위해 고정값 사용
+        from Agent_Tool import AgentTools
+        from Document_Loader import DocumentLoader
+        from Document_Splitter import DocumentSplitter
+        from Embedding_DB import EmbeddingDB
+        from Env_Loader import EnvLoader
+        from LLM_Factory import LLMFactory
+        from Retriever_Builder import RetrieverBuilder
+        from pathlib import Path
+        import os
+        EnvLoader.load_local()
+        BASE_DIR = Path(__file__).resolve().parent.parent
+
         kind = "json"
         file_path = BASE_DIR / os.getenv("DATA_PATH", "Data_Files")
-        chunk_size = 1000
+        chunk_size = 512
         overlap_size = 50
-        persist_dir = BASE_DIR / os.getenv("DATA_PATH","Data_Files") / f"{kind}_{chunk_size}"
-        device = "cuda"
+        persist_dir = BASE_DIR / os.getenv("DATA_PATH", "Data_Files") / f"{kind}_{chunk_size}"
+        device = "mps"
         retriever_mode = 4
         k = 3
         engine_num = 1
@@ -61,8 +78,8 @@ def main(return_chain_only: bool = False):
 
     # ④ 문서 분할
     splitter = DocumentSplitter(chunk_size=chunk_size, overlap=overlap_size)  # 이미 분할된 문서가 있다면 로드하고 아니면 새로 스플릿함
-    #chunks_recruitment = splitter.split(docs_post, cache_dir=file_path)
-    #chunks_company = splitter.split(docs_company, cache_dir=file_path)
+    # chunks_recruitment = splitter.split(docs_post, cache_dir=file_path)
+    # chunks_company = splitter.split(docs_company, cache_dir=file_path)
     chunks = splitter.split(docs_post + docs_company, cache_dir=file_path)  # 게시글과 회사 정보를 합쳐서 분할
     # ⑤ 임베딩 & DB 생성/로드
     embed_db = EmbeddingDB(model_name="nlpai-lab/KURE-v1", device=device,
@@ -84,9 +101,31 @@ def main(return_chain_only: bool = False):
 
     tools = AgentTools.get_tools(retriever=retriever, llm=llm)  # 도구 목록 생성 (retriever 포함)
 
-    agent = create_tool_calling_agent(llm, tools, AgentTools.PROMPT)
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+    )
+    agent = create_tool_calling_agent(
+        llm,
+        tools,
+        AgentTools.PROMPT
+    )
+    react_agent = create_react_agent(
+        llm,
+        tools,
+        AgentTools.react_prompt,
+    )
+    # agent_executor = (
+    #     AgentExecutor(agent=agent, tools=tools, verbose=True)
+    # )
 
+    agent_executor = AgentExecutor.from_agent_and_tools(
+        agent = agent,
+        tools = tools,
+        memory = memory,
+        verbose=True,
+        return_intermediate_steps=True,
+    )
 
     # 도구 호출 시 실행되는 콜백 함수입니다.
     def tool_callback(tool) -> None:
@@ -122,7 +161,6 @@ def main(return_chain_only: bool = False):
 
     # AgentStreamParser 객체를 생성하여 에이전트의 실행 과정을 파싱합니다.
     agent_stream_parser = AgentStreamParser(agent_callbacks)
-
 
     store = {}
 
@@ -161,6 +199,7 @@ def main(return_chain_only: bool = False):
         for step in result:
             agent_stream_parser.process_agent_steps(step)
         print()  # 다음 질문을 위해 줄바꿈
+
 
 if __name__ == "__main__":
     main()

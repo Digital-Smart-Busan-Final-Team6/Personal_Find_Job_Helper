@@ -51,7 +51,7 @@ class RetrieverBuilder:
             parent_retreiver = ParentDocumentRetriever(
                 vectorstore=self.db,
                 docstore=parent_store,
-                child_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50),
+                child_splitter=RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=50),
                 parent_splitter=RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50),  # 더미값임
                 search_kwargs={"k": self.k},
                 id_key="id",

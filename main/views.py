@@ -2,12 +2,13 @@
 
 import time  # Agent 호출 시뮬레이션을 위한 time 모듈
 import json
-import re 
+import re
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from pathlib import Path                # ← 이 줄을 추가해주세요
 
 from accounts.models import Resume
 from accounts.forms import ResumeForm
@@ -16,6 +17,7 @@ from accounts.forms import ResumeForm
 from Run_Pipeline.Agent_Manager import get_agent_chain
 from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
 from .utils import parse_markdown_table_to_json  # utils에서 함수 호출
+from django.forms.models import model_to_dict
 
 
 # --- [View 1] 챗봇이 있는 메인 페이지 ---
@@ -298,11 +300,43 @@ def recommend_recommending_view(request):
     resume_ids_str = request.GET.get("resumes", "")
     if not resume_ids_str:
         return redirect("resume_list")
+
     resume_ids = resume_ids_str.split(",")
 
-    query = "내 이력서에 가장 적합한 공고를 추천해줘."
+    # 모든 선택된 이력서 로드 (기존에는 first()만 사용)
+    resume_objects = Resume.objects.filter(id__in=resume_ids)
+    if not resume_objects.exists():
+        request.session["recommended_jobs"] = []
+        return redirect("recommend_result")
 
-    # ---  Agent 호출 및 결과 파싱 ---
+    # 각 이력서를 dict로 변환
+    resume_data_list = []
+    for resume_obj in resume_objects:
+        resume_dict = model_to_dict(
+            resume_obj,
+            fields=[
+                "education_level", "university", "major", "gpa",
+                "experience_years", "job", "location",
+                "skills", "experience", "certifications"
+            ]
+        )
+        # 이력서 제목도 포함 (표시용)
+        resume_dict['title'] = resume_obj.title
+        resume_data_list.append(resume_dict)
+
+        query = f"""
+        사용자의 이력서 정보를 바탕으로 가장 적합한 공고를 추천해 주세요.
+        
+        ## 이력서 정보
+        {resume_dict}
+        
+        다음과 같이 find_best_job_match 도구를 호출해 주세요:
+        find_best_job_match(resume={resume_dict})
+        
+        중요: resume 파라미터에 위의 이력서 JSON 데이터를 정확히 전달해 주세요.
+        """
+
+    # --- Agent 호출 및 결과 파싱 ---
     recommended_jobs = []
     try:
         agent = get_agent_chain()
@@ -311,30 +345,34 @@ def recommend_recommending_view(request):
             request.session.create()
         session_id = request.session.session_key
 
-        print("Agent 호출 시작 (모든 정보가 담긴 단일 쿼리 전달)...")
+        print(f"Agent 호출 시작 ({len(resume_data_list)}개 이력서 처리)...")
+        print(f"쿼리 미리보기: {query[:200]}...")
+
         result = agent.invoke(
-            {"input": query},  # '지시사항이 담긴 쿼리'를 input으로 전달
-            config={"configurable": {"session_id": session_id}},
+            {"input": query},
+            {"configurable": {"session_id": session_id}},
         )
 
         agent_output = result.get("output", "")
-        print(f"Agent로부터 받은 결과: {agent_output}")
+        print(f"Agent로부터 받은 결과: {agent_output[:500]}...")
 
         recommended_jobs = parse_markdown_table_to_json(agent_output)
-        print("Agent 결과(Markdown) 파싱 성공!")
+        print(f"Agent 결과(Markdown) 파싱 성공! {len(recommended_jobs)}개 공고 추천됨")
 
     except Exception as e:
         print(f"Agent 호출 또는 결과 파싱 중 오류 발생: {e}")
         recommended_jobs = []
+
     # 세션 저장, 리디렉션
     request.session["recommended_jobs"] = recommended_jobs
     request.session["selected_resume_ids"] = resume_ids
+    request.session["selected_resumes_data"] = resume_data_list  # 추가: 이력서 데이터도 저장
+
     return redirect("recommend_result")
 
 
 # --- [View 10] 추천 결과 페이지 뷰 ---
 def recommend_result_view(request):
-
     # 세션에서 추천 결과만 가져오기.
     recommended_jobs = request.session.get("recommended_jobs")
     selected_resume_ids = request.session.get("selected_resume_ids", [])
@@ -350,24 +388,17 @@ def recommend_result_view(request):
         "switch_url_name": "home",
     }
 
-    # 세션 데이터를 사용 후에는 삭제하여 다음 요청에 영향을 주지 않도록 합니다.
-    if "recommended_jobs" in request.session:
-        del request.session["recommended_jobs"]
-    if "selected_resume_ids" in request.session:
-        del request.session["selected_resume_ids"]
+    #
 
     return render(request, "recommend_result.html", context)
 
-
-# --- [View 11] 최종 리포트 생성을 위한 페이지 뷰 (최종 수정 버전) ---
 def generate_final_report_view(request):
     if request.method != "POST":
         return redirect("resume_list")
 
-    # --- 기본 정보 로드 ---
-    resume_ids_str = request.POST.get("resume_ids", "")
+    # 1) 입력 파라미터 검증
+    resume_ids_str   = request.POST.get("resume_ids", "")
     selected_job_ids = request.POST.getlist("selected_jobs")
-
     if not resume_ids_str or not selected_job_ids:
         messages.error(request, "이력서와 채용 공고를 선택해야 합니다.")
         return redirect("resume_list")
@@ -375,7 +406,22 @@ def generate_final_report_view(request):
     main_resume_id = resume_ids_str.split(",")[0]
     selected_job_id_str = selected_job_ids[0]
 
-    # --- 화면 표시에 필요한 추가 정보 로드 ---
+    # 2) Resume 객체 로드 및 dict 변환
+    try:
+        resume_obj = Resume.objects.get(id=main_resume_id)
+    except Resume.DoesNotExist:
+        messages.error(request, "선택한 이력서를 찾을 수 없습니다.")
+        return redirect("resume_list")
+
+    resume_dict = model_to_dict(
+        resume_obj,
+        fields=[
+            "education_level","university","major","gpa",
+            "experience_years","job","location",
+            "skills","experience","certifications",
+        ],
+    )
+
     job_detail = None
     try:
         job_file_path = settings.BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
@@ -392,62 +438,143 @@ def generate_final_report_view(request):
     except Exception as e:
         print(f"공고 정보 조회 중 오류 발생: {e}")
 
-    # --- Agent 호출 ---
+    # 3) Agent 호출 및 리포트 생성 (이력서만 넘김)
+    agent = get_agent_chain()
+    if not request.session.session_key:
+        request.session.create()
+    session_id = request.session.session_key
+
+    # 이력서 dict를 JSON 문자열로
+    resume_json = json.dumps(resume_dict, ensure_ascii=False)
+
+    # 한 줄 호출: 툴 이름과 JSON
+    prompt = (
+        f"""
+        이력서를 기반으로 채용공고와 매칭되는 상세 리포트를 생성합니다.
+        
+        ## 이력서 정보
+        {resume_dict}
+        
+        ## 공고 정보
+        {job_detail}
+        
+        다음과 같이 write_job_report 도구를 호출해 주세요:
+        write_job_report(resume={resume_dict}, job={job_detail})
+        
+        
+        
+        중요: resume, job_detail 파라미터에 위의 JSON 데이터를 정확히 전달해 주세요.
+        """
+    )
+
     report_markdown = "### 분석 실패\nAI 리포트 생성 중 오류가 발생했습니다."
     try:
-        if job_detail:
-            agent = get_agent_chain()
-            if not request.session.session_key:
-                request.session.create()
-            session_id = request.session.session_key
-
-            simple_query = f"채용 공고 {selected_job_id_str}에 대한 상세 분석 리포트를 작성해줘."
-            
-            print(f">>> 최종 리포트 생성 Agent 호출 (Query: {simple_query})")
-            final_result = agent.invoke(
-                {"input": simple_query}, config={"configurable": {"session_id": session_id}}
-            )
-            
-            # ★★★★★★★★★★★★★★★ 핵심 수정 부분 ★★★★★★★★★★★★★★★
-            # 1. AI가 생성한 '친절한 문장 전체'를 가져옵니다.
-            agent_output = final_result.get("output", "")
-            
-            # 2. 정규 표현식을 사용해 문장 속에서 'Reports/...' 형태의 파일 경로만 추출합니다.
-            #    슬래시(/)와 역슬래시(\\)를 모두 처리할 수 있도록 패턴을 작성합니다.
-            match = re.search(r"Reports[/\\]job_report_[\w-]+\.md", agent_output)
-            
-            # 3. 파일 경로를 성공적으로 추출했다면,
-            if match:
-                # 추출한 경로(예: 'Reports\\job_report_...md')를 사용합니다.
-                report_file_path_str = match.group(0)
-                report_full_path = settings.BASE_DIR / report_file_path_str
-                
-                # 파일을 열어서 내용을 읽습니다.
-                with open(report_full_path, 'r', encoding='utf-8') as f:
-                    report_markdown = f.read()
-                print(f"성공: 리포트 파일 '{report_file_path_str}'의 내용을 읽었습니다.")
-            else:
-                # 만약 문장에서 파일 경로를 찾지 못했다면, AI의 답변을 그대로 보여줍니다.
-                report_markdown = f"### 분석 결과\nAI가 리포트 파일을 생성했지만, 경로를 찾을 수 없습니다.\n\n**AI 응답 원문:**\n```\n{agent_output}\n```"
-                print(f"경고: AI 응답에서 파일 경로를 찾지 못했습니다. 원문: {agent_output}")
-            # ★★★★★★★★★★★★★★★ 수정 끝 ★★★★★★★★★★★★★★★
-
-        else:
-            report_markdown = "### 분석 실패\n요청하신 채용 공고 정보를 찾을 수 없어 AI 분석을 진행할 수 없습니다."
-
+        result = agent.invoke(
+            {"input": prompt},
+            config={"configurable": {"session_id": session_id}},
+        )
+        report_markdown = result.get("output", "").strip()
     except Exception as e:
-        print(f"최종 리포트 생성 중 오류 발생: {e}")
-        report_markdown = f"### 리포트 생성 오류\nAI 분석 중 오류가 발생했습니다.\n\n**오류:** `{e}`"
+        report_markdown = f"### 리포트 생성 오류\n{e}"
 
-    # --- 결과 렌더링 ---
+    # 4) 결과 렌더링
     resumes = Resume.objects.filter(id__in=resume_ids_str.split(","))
-
     context = {
         "resumes": resumes,
-        "selected_job_id": selected_job_id_str,
-        "job_detail": job_detail,
         "report_markdown": report_markdown,
         "current_page": "resume",
         "switch_url_name": "home",
     }
+
     return render(request, "report_detail.html", context)
+
+
+
+# def generate_final_report_view(request):
+#     if request.method != "POST":
+#         return redirect("resume_list")
+#
+#     # 1) 입력 파라미터 검증
+#     resume_ids_str   = request.POST.get("resume_ids", "")
+#     selected_job_ids = request.POST.getlist("selected_jobs")
+#     if not resume_ids_str or not selected_job_ids:
+#         messages.error(request, "이력서와 채용 공고를 선택해야 합니다.")
+#         return redirect("resume_list")
+#
+#     main_resume_id      = resume_ids_str.split(",")[0]
+#     selected_job_id_str = selected_job_ids[0]
+#
+#     # 2) Resume 객체 로드 및 dict 변환
+#     try:
+#         resume_obj = Resume.objects.get(id=main_resume_id)
+#     except Resume.DoesNotExist:
+#         messages.error(request, "선택한 이력서를 찾을 수 없습니다.")
+#         return redirect("resume_list")
+#
+#     resume_dict = model_to_dict(
+#         resume_obj,
+#         fields=[
+#             "education_level","university","major","gpa",
+#             "experience_years","job","location",
+#             "skills","experience","certifications",
+#         ],
+#     )
+#
+#     # 3) 선택된 공고 상세 정보 로드
+#     job_detail = None
+#     try:
+#         job_file = Path(settings.BASE_DIR) / "Data_Files" / "wanted_detail_improve_20250616.json"
+#         with open(job_file, "r", encoding="utf-8") as f:
+#             all_jobs = json.load(f)
+#         job_data = all_jobs.get("postings", all_jobs)
+#         job_detail = job_data.get(selected_job_id_str)
+#     except Exception as e:
+#         print(f"[Error] 공고 정보 로드 실패: {e}")
+#
+#     # 4) Agent 호출 및 리포트 생성
+#     report_markdown = "### 분석 실패\nAI 리포트 생성 중 오류가 발생했습니다."
+#     if job_detail:
+#         agent = get_agent_chain()
+#         if not request.session.session_key:
+#             request.session.create()
+#         session_id = request.session.session_key
+#
+#         # JSON 문자열로 직렬화
+#         resume_json = json.dumps(resume_dict, ensure_ascii=False)
+#         job_json    = json.dumps(job_detail, ensure_ascii=False)
+#
+#         # 2) JSON 문자열로 직렬화
+#         params_json = json.dumps({
+#             "resume": resume_dict,
+#             "job": job_detail,
+#             "depth": "detailed"
+#         }, ensure_ascii=False)
+#
+#         # 3) 프롬프트에서 단일 입력으로 넘기기
+#         prompt = (
+#             "Thought: 이력서와 채용공고를 분석해 상세 리포트를 생성합니다.\n"
+#             f"Action: write_job_report {params_json}\n"
+#             "Final Answer:"
+#         )
+#
+#         try:
+#             result = agent.invoke(
+#                 {"input": prompt},
+#                 config={"configurable": {"session_id": session_id}},
+#             )
+#             report_markdown = result.get("output", "").strip()
+#         except Exception as e:
+#             report_markdown = f"### 리포트 생성 오류\n{e}"
+#
+#     # 5) 결과 렌더링
+#     resumes = Resume.objects.filter(id__in=resume_ids_str.split(","))
+#     context = {
+#         "resumes": resumes,
+#         "selected_job_id": selected_job_id_str,
+#         "job_detail": job_detail,
+#         "report_markdown": report_markdown,
+#         "current_page": "resume",
+#         "switch_url_name": "home",
+#     }
+#
+#     return render(request, "report_detail.html", context)
