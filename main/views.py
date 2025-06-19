@@ -180,7 +180,7 @@ def job_search_report_page(request):
 
         try:
             # Agent 호출
-            agent = get_agent_chain()
+            agent = get_agent_chain(mode = "chat")
             if not request.session.session_key:
                 request.session.create()
             session_id = request.session.session_key
@@ -247,7 +247,7 @@ def chat_api(request):
                 content_type="text/event-stream",
             )
 
-        agent = get_agent_chain()
+        agent = get_agent_chain(mode = "chat")
 
         # 스트리밍 응답을 위한 제너레이터 함수를 정의합니다.
         def stream_response_generator():
@@ -339,7 +339,7 @@ def recommend_recommending_view(request):
     # --- Agent 호출 및 결과 파싱 ---
     recommended_jobs = []
     try:
-        agent = get_agent_chain()
+        agent = get_agent_chain(mode = "job")
 
         if not request.session.session_key:
             request.session.create()
@@ -439,7 +439,7 @@ def generate_final_report_view(request):
         print(f"공고 정보 조회 중 오류 발생: {e}")
 
     # 3) Agent 호출 및 리포트 생성 (이력서만 넘김)
-    agent = get_agent_chain()
+    agent = get_agent_chain(mode = "job")
     if not request.session.session_key:
         request.session.create()
     session_id = request.session.session_key
