@@ -9,7 +9,8 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain.memory import ConversationBufferMemory
 
 
-def main(return_chain_only: bool = False):
+def main(return_chain_only: bool = False,
+         mode: str = "chat"):
     # ① 환경 변수 로드 (로컬 우선)
 
     # ② 파라미터 설정
@@ -95,11 +96,21 @@ def main(return_chain_only: bool = False):
         full_docs=docs_post + docs_company,  # 전체 문서 목록 (게시글 + 회사 정보)
         chunks=chunks,
         k=k,
-        mode=retriever_mode
     )
-    retriever = retriever_builder.build()
+    retriever = retriever_builder.build(mode=retriever_mode)
 
-    tools = AgentTools.get_tools(retriever=retriever, llm=llm)  # 도구 목록 생성 (retriever 포함)
+    if mode == "chat":
+        allowed = ["document_search", "search_web"]
+    else:
+        allowed = ["document_search",
+                   "find_best_job_match",
+                   "write_job_report"]
+
+    tools = AgentTools.get_tools(
+        retriever=retriever,
+        llm=llm,
+        allowed_tool_names=allowed,  # ← 추가
+    )
 
     memory = ConversationBufferMemory(
         memory_key="chat_history",
@@ -110,19 +121,13 @@ def main(return_chain_only: bool = False):
         tools,
         AgentTools.PROMPT
     )
-    react_agent = create_react_agent(
-        llm,
-        tools,
-        AgentTools.react_prompt,
-    )
-    # agent_executor = (
-    #     AgentExecutor(agent=agent, tools=tools, verbose=True)
-    # )
+
+
 
     agent_executor = AgentExecutor.from_agent_and_tools(
-        agent = agent,
-        tools = tools,
-        memory = memory,
+        agent=agent,
+        tools=tools,
+        memory=memory,
         verbose=True,
         return_intermediate_steps=True,
     )

@@ -28,8 +28,8 @@ class AgentTools:
     # 가중치 설정 (모든 이력서에 대해 고정)
     WEIGHT_COSINE_SIMILARITY = 0.6
     WEIGHT_EXPERIENCE_MATCH = 0.2
-    WEIGHT_TECH_STACK_MATCH = 0.15
-    WEIGHT_JOB_ROLE_MATCH = 0.05
+    WEIGHT_TECH_STACK_MATCH = 0.10
+    WEIGHT_JOB_ROLE_MATCH = 0.10
     RESUME_JOB_ROLE_KEYWORDS = []
     # 이력서의 직무 관련 키워드 (고정된 가중치를 사용하므로 여기서 직접 정의)
     # 이 부분은 이력서 파싱 후 LLM으로 동적 추출하는 방향으로 고도화될 수 있습니다. 분석", "엔지니어", "개발자", "소프트웨어"]  # 새로 추가/변경: 클래스 변수로 이동
@@ -43,20 +43,7 @@ class AgentTools:
     그 외의 질문에는 "죄송합니다. 취업 관련 질문에만 답변할 수 있습니다."라고 답하세요.
     필요하면 표·리스트·예시 코드를 사용해도 좋습니다.
 
-    # 툴 사용 규칙
-    1. 채용 공고, 취업 뉴스, 면접 정보, 회사 정보 등 **문서**에서 답을 찾을 수 있을 것 같으면
-       반드시 `document_search` 툴을 먼저 호출한다.
-    2. `document_search`가 결과를 0개 반환하거나(embeddings empty) 내용이 질문과 무관하면
-       보강 정보가 필요하다고 판단하고 `search_web` 툴을 호출한다.
-    3. 사용자가 “평균”, “통계”, “그래프”, “필터” 같은 키워드로
-       **데이터 분석**을 요구하면 `job_dataframe_analysis` 툴을 호출한다.
-    4. 사용자가 “이미지 만들어”, “로고 그려” 같이 시각 생성 요청을 하면 `generate_image`.
-    5. “내 이력서” 또는 “내 경력”을 직접 언급하면 `resume_qa`.
-    6. **"가장 적합한 공고", "내 이력서에 맞는 공고", "추천 공고"**와 같은 키워드로
-       이력서와 공고 매칭을 요청하면 `find_best_job_match` 툴을 호출한다.
-    7. 사용자가 공고 를 지정하며 “상세 분석”, “리포트” 등을 요청하면 document_search로 공고를 검색 후, write_job_report 툴을 호출한다.
-    예) "제일 적합도가 높은 공고로 리포트 작성해 줘"
-    8. 위 조건에 맞지 않으면 툴을 사용하지 않고 자체 지식으로 답한다.
+    
 
     # 워크플로 예시 (Few-shot)
     ## 예시 1 – 문서 검색 성공
@@ -102,52 +89,12 @@ class AgentTools:
         ("placeholder", "{agent_scratchpad}"),
     ])
 
-    from langchain_core.prompts import ChatPromptTemplate
-
-    react_prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """
-    🔹 역할 & 톤
-    당신은 신뢰할 수 있는 취업 전문가 AI 코치입니다.  
-    한국어로 친절하게 답변하되, 채용/이력서/면접/회사 정보/채용 관련 기사 같은 질문에만 응답합니다.  
-
-    {tools}          
-    (툴 이름 목록: {tool_names}) 
-
-    🔹 Tool 사용 규칙
-    1. 문서 기반 답이 가능할 것 같으면 **반드시** `document_search`를 먼저 호출한다.
-    2. 결과가 0개이거나 질문과 무관하면 `search_web`을 호출한다.
-    3. '평균·그래프·통계' 등 데이터 분석 → `job_dataframe_analysis`
-    4. '내 이력서' 직접 언급 → `resume_qa`
-    5. '가장 적합한 공고 추천' → `find_best_job_match`
-    6. 그 밖엔 Tool 없이 자체 지식으로 답한다.
-
-    🔹 포맷 (★ ReAct 필수)
-    - <모델의 내부 사고>는 **Thought:** 로 시작  
-    - Tool 호출은 **Action:** Tool이름 {{ JSON 인자 }}  
-    - Observation 다음 다시 Thought → Action … 또는 **Final Answer:** 로 종료
-
-    예시)
-    Thought: "채용 공고에 있을 것 같다"
-    Action: document_search {{ "query": "삼성전자 백엔드 신입 연봉" }}
-    Observation: "연봉 5,400만원~ …"
-    Thought: "바로 답할 수 있다"
-    Final Answer: "삼성전자 백엔드 신입 초봉은 …"
-                """,
-            ),
-            ("placeholder", "{chat_history}"),
-            ("human", "{input}"),
-            ("placeholder", "{agent_scratchpad}"),
-            # {tool_names}를 위에서 이미 사용했으므로 여기엔 더 안 넣어도 됨
-        ]
-    )
 
     # --------------------------------------------------
     @staticmethod
-    def get_tools(*, retriever: Any, llm) -> List[Tool]:
-        tools = [
+    def get_tools(*, retriever: Any, llm,
+                  allowed_tool_names : List[str] = None) -> List[Tool]:
+        all_tools = [
             AgentTools._create_retriever_tool(retriever),
             AgentTools._create_search_tool(),
             AgentTools._create_dataframe_tool(llm),
@@ -160,9 +107,13 @@ class AgentTools:
         # ▒ file-management 툴 (여러 개) 추가
         file_tools = AgentTools._create_file_management_tool()
         if file_tools:
-            tools.extend(file_tools)
+            all_tools.extend(file_tools)
+        tools = [t for t in all_tools if t is not None]
 
-        return [t for t in tools if t is not None]
+        if allowed_tool_names is not None:
+            tools = [t for t in tools if t.name in allowed_tool_names]
+
+        return tools
 
     # ────────────────────── tool builders ──────────────────────
     # 1) 웹 검색
@@ -266,6 +217,7 @@ class AgentTools:
         """
         이력서를 LLM 컨텍스트에 넣어 질의-응답해 주는 툴.
         """
+        from accounts.models import Resume
         data_path = BASE_DIR / "Data_Files" / "resume.json"
         try:
             with open(data_path, encoding="utf-8") as f:
