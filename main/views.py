@@ -373,25 +373,76 @@ def recommend_recommending_view(request):
 
 # --- [View 10] 추천 결과 페이지 뷰 ---
 def recommend_result_view(request):
-    # 세션에서 추천 결과만 가져오기.
-    recommended_jobs = request.session.get("recommended_jobs")
+    # --- 1. 세션에서 Agent가 파싱한 기본 데이터 가져오기 ---
+    recommended_jobs_from_session = request.session.get("recommended_jobs")
     selected_resume_ids = request.session.get("selected_resume_ids", [])
 
-    # 세션에 추천 공고 데이터가 없으면 시작 페이지로 이동
-    if not recommended_jobs:
+    if not recommended_jobs_from_session:
+        messages.warning(request, "추천된 공고가 없습니다. 다시 시도해주세요.")
         return redirect("resume_list")
 
+    # --- 2. 상세 정보 조회를 위해 원본 공고 데이터 파일 로드 ---
+    try:
+        job_file_path = settings.BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
+        with open(job_file_path, 'r', encoding='utf-8') as f:
+            all_jobs_data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"오류: 공고 데이터 파일({job_file_path})을 로드할 수 없습니다. - {e}")
+        messages.error(request, "공고 정보를 불러오는 데 실패했습니다.")
+        all_jobs_data = {}
+
+    # --- 3. 추천 공고 목록에 상세 정보 보강하기 (Enrichment) ---
+    enriched_recommended_jobs = []
+    for job in recommended_jobs_from_session:
+        # utils.py의 파싱 결과에 따라 키 이름이 "공고 ID" (공백 포함) 입니다.
+        # 이 키가 없다면 해당 공고는 건너뜁니다.
+        job_id = job.get("공고 ID") 
+        if not job_id:
+            continue
+
+        # Agent가 생성한 기본 정보(순위, 제목, 적합도 등)를 복사
+        enriched_job = job.copy()
+
+        # 원본 데이터에서 해당 공고의 상세 정보 조회
+        job_details = all_jobs_data.get(str(job_id))
+
+        if job_details:
+            # 조회한 상세 정보를 enriched_job 딕셔너리에 추가
+            enriched_job['회사명'] = job_details.get('회사명')
+            min_exp = job_details.get('요구 최소 경력', 0)
+            enriched_job['경력'] = '신입' if min_exp == 0 else f"{min_exp}년 이상"
+            enriched_job['근무지'] = job_details.get('근무지')
+            enriched_job['기술스택'] = job_details.get('기술 스택', [])
+        else:
+            # 원본 데이터에 해당 공고가 없는 예외적인 경우
+            print(f"경고: 공고 ID '{job_id}'에 해당하는 상세 정보를 찾을 수 없습니다.")
+            enriched_job['회사명'] = None
+            enriched_job['경력'] = None
+            enriched_job['근무지'] = None
+            enriched_job['기술스택'] = []
+        
+        # 적합도를 퍼센트로 변환하여 추가 (템플릿에서 계산을 줄이기 위함)
+        try:
+            suitability_score = float(job.get('적합도', 0))
+            enriched_job['적합도_정규화'] = suitability_score # 0~1 사이 값 (프로그레스 바 용)
+            enriched_job['적합도_퍼센트'] = round(suitability_score * 100, 1) # 표시용
+        except (ValueError, TypeError):
+            enriched_job['적합도_정규화'] = 0.0
+            enriched_job['적합도_퍼센트'] = 0.0
+
+        enriched_recommended_jobs.append(enriched_job)
+
+    # --- 4. 최종 데이터를 context에 담아 템플릿으로 전달 ---
     context = {
-        "recommended_jobs": recommended_jobs,
-        "resume_ids_str": ",".join(selected_resume_ids),
+        "recommended_jobs": enriched_recommended_jobs, # 정보가 보강된 최종 리스트
+        "resume_ids_str": ",".join(map(str, selected_resume_ids)),
         "current_page": "resume",
         "switch_url_name": "home",
     }
 
-    #
-
     return render(request, "recommend_result.html", context)
 
+# --- [View 11] 최종 리포트 생성 페이지 뷰 ---
 def generate_final_report_view(request):
     if request.method != "POST":
         return redirect("resume_list")

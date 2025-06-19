@@ -5,84 +5,179 @@
   {% csrf_token %}
   <meta charset="UTF-8">
   <title>Helper</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    /* CSS는 변경 사항 없습니다. 기존 스타일 그대로 사용합니다. */
-    html, body { margin: 0; padding: 0; height: 100%; font-family: 'Orbitron', sans-serif; color: white; }
-    #particles-js { position: fixed; width: 100%; height: 100%; z-index: -1; background-color: #0a0f1a; background-image: linear-gradient(217deg, rgba(20, 30, 48, 0.6), rgba(0, 0, 0, 0) 70.71%), linear-gradient(127deg, rgba(15, 20, 35, 0.4), rgba(0, 0, 0, 0) 70.71%), linear-gradient(336deg, rgba(10, 10, 30, 0.4), rgba(0, 0, 0, 0) 70.71%); background-size: cover; background-position: center; }
-    .container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-    .title { font-size: 5rem; letter-spacing: 0.1em; opacity: 0; margin-bottom: 40px; }
-    .chat-input { display: flex; align-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 30px; padding: 12px 20px; width: 60%; max-width: 600px; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.3); }
-    .chat-input input { flex: 1; padding: 10px; border: none; outline: none; background: transparent; color: white; font-size: 1.2rem; }
-    .chat-input button { background: transparent; border: none; color: white; font-size: 1.5rem; cursor: pointer; transition: color 0.3s; }
-    .chat-input button:hover { color: #aaaaff; }
-    .chatbox { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 800px; max-height: 60vh; overflow-y: auto; padding: 20px; border-radius: 20px; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: none; flex-direction: column; gap: 10px; }
-    .message { max-width: 70%; padding: 12px 18px; border-radius: 20px; word-break: break-word; line-height: 1.4; text-align: left; }
-    .user { align-self: flex-end; background: rgba(255, 255, 255, 0.1); }
-    .bot { align-self: flex-start; background: rgba(170, 170, 255, 0.2); }
-    .chatbox, .message, .chat-input input, .chat-input button { font-family: 'Inter', sans-serif; }
-    .typing-cursor::after { content: ''; display: inline-block; width: 8px; height: 1em; background-color: #4B5563; margin-left: 4px; animation: blink 1s step-start infinite; vertical-align: bottom; border-radius: 2px; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    :root {
+      --bg-gradient-1: #e0eafc;
+      --bg-gradient-2: #cfdef3;
+      --text-color: #333;
+      --primary-color: #6a11cb;
+      --secondary-color: #fc5c7d;
+      --sidebar-bg: #ffffff;
+      --sidebar-text: #555;
+      --sidebar-hover-bg: #f0f4f8;
+      --input-bg: #ffffff;
+      --input-border: #d1d9e6;
+      --shadow-color: rgba(106, 17, 203, 0.2);
+    }
+
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-color);
+      overflow: hidden;
+    }
+
+    .background-container {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        z-index: -1;
+        background: linear-gradient(-45deg, var(--bg-gradient-1), var(--bg-gradient-2), #a2c2ee, #d2baff);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
+    }
+
+    .blob {
+        position: absolute; filter: blur(60px); opacity: 0.6;
+        transition: transform 1s ease-out;
+    }
+    .blob1 { width: 350px; height: 350px; top: 10%; left: 10%; background: rgba(106, 130, 251, 0.4); animation: move1 20s infinite alternate; }
+    .blob2 { width: 450px; height: 450px; top: 60%; left: 65%; background: rgba(252, 92, 125, 0.3); animation: move2 25s infinite alternate-reverse; }
+    .blob3 { width: 300px; height: 300px; top: 40%; left: -15%; background: rgba(162, 194, 238, 0.5); animation: move3 18s infinite alternate; }
+
+    @keyframes move1 {
+      from { transform: translate(0, 0) scale(1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+      to { transform: translate(100px, 50px) scale(1.2); border-radius: 60% 40% 30% 70% / 50% 60% 50% 40%; }
+    }
+    @keyframes move2 {
+      from { transform: translate(0, 0) scale(1); border-radius: 44% 56% 45% 55% / 56% 43% 57% 44%; }
+      to { transform: translate(-80px, -60px) scale(0.9); border-radius: 56% 44% 55% 45% / 43% 57% 44% 56%; }
+    }
+    @keyframes move3 {
+      from { transform: translate(0, 0) scale(1.1); border-radius: 35% 65% 58% 42% / 62% 43% 57% 38%; }
+      to { transform: translate(50px, -100px) scale(1); border-radius: 65% 35% 42% 58% / 43% 57% 38% 62%; }
+    }
+
+    .container {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100vh; text-align: center; padding: 20px;
+      position: relative; z-index: 1;
+    }
+
+    .title {
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(4rem, 12vw, 9rem);
+      font-weight: 700; letter-spacing: 0.02em;
+      line-height: 1.1; margin-bottom: 50px;
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; color: transparent;
+      transition: transform 1s ease-out;
+      text-shadow: 0 0 25px rgba(0,0,0,0.1);
+    }
+    
+    /* ✅ [BUG FIX] 채팅 입력창 너비 스타일 복구 */
+    .chat-input {
+      display: flex; align-items: center; background: var(--input-bg);
+      border: 1px solid var(--input-border); border-radius: 50px;
+      padding: 15px 25px;
+      width: 80%; /* %로 지정하여 유연하게 */
+      max-width: 700px; /* 최대 너비 제한 */
+      box-shadow: 0 10px 30px var(--shadow-color);
+      transition: all 0.3s ease-out;
+    }
+    #home-chat-input { opacity: 0; transform: translateY(20px); }
+    .chat-input:focus-within { box-shadow: 0 10px 40px rgba(106, 17, 203, 0.4); transform: translateY(-5px) scale(1.01); }
+    .chat-input input { flex: 1; border: none; outline: none; background: transparent; color: var(--text-color); font-size: 1.3rem; font-family: 'Inter', sans-serif; font-weight: 500; }
+    .chat-input input::placeholder { color: #aaa; }
+    .chat-input button { background: transparent; border: none; color: var(--primary-color); font-size: 1.8rem; cursor: pointer; transition: transform 0.3s ease, color 0.3s ease; padding-left: 15px; }
+    .chat-input button:hover { color: var(--secondary-color); transform: scale(1.1); }
+    .chat-input button:active { transform: scale(0.95); }
+
+    .chatbox { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 800px; max-height: calc(100vh - 200px); overflow-y: auto; padding: 20px; display: none; flex-direction: column; gap: 15px; }
+    .message { max-width: 75%; padding: 15px 22px; border-radius: 22px; word-break: break-word; line-height: 1.5; text-align: left; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .user { align-self: flex-end; background: linear-gradient(45deg, #2563eb, #3b82f6); color: white; border-bottom-right-radius: 5px; }
+    .bot { align-self: flex-start; background-color: #ffffff; color: var(--text-color); border-bottom-left-radius: 5px; }
+    
+    #chat-input-container {
+      position: absolute; bottom: 30px; left: 50%;
+      transform: translateX(-50%);
+      width: 100%; /* 부모에 너비를 꽉 채움 */
+      display: flex;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .typing-dots span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #9ca3af; margin: 0 2px; animation: dot-blink 1.4s infinite both; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot-blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
+
+    .sidebar { background-color: var(--sidebar-bg) !important; box-shadow: 4px 0px 15px rgba(0,0,0,0.05) !important; z-index: 10; }
+    .sidebar a, .sidebar button { color: var(--sidebar-text) !important; }
+    .sidebar a:hover, .sidebar button:hover { background-color: var(--sidebar-hover-bg) !important; color: var(--primary-color) !important; }
+    .sidebar .menu-item i { color: var(--sidebar-text) !important; transition: color 0.3s; }
+    .sidebar .menu-item:hover i { color: var(--primary-color) !important; }
   </style>
 </head>
-<body class="home-page">
+<body>
   {% include '_sidebar.html' %}
 
-  <div id="particles-js"></div>
+  <div class="background-container">
+    <div class="blob blob1" data-depth="0.2"></div>
+    <div class="blob blob2" data-depth="0.4"></div>
+    <div class="blob blob3" data-depth="0.3"></div>
+  </div>
 
   <div class="container" id="home-container">
-    <div class="title" id="helper-title">Helper</div>
-    <div class="chat-input">
+    <div class="title" id="helper-title" data-depth="0.6">Helper</div>
+    <div class="chat-input" id="home-chat-input" data-depth="0.8">
       <input type="text" id="home-input" placeholder="무엇을 도와드릴까요?" />
-      <button id="start-chat">➤</button>
+      <button id="start-chat"><i class="fa-solid fa-paper-plane"></i></button>
     </div>
   </div>
   
   <div class="chatbox" id="chatbox"></div>
-  <div class="chat-input" id="chat-input-container" style="display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 60%; max-width: 600px;">
-    <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
-    <button id="send-btn">➤</button>
+  <div id="chat-input-container">
+    <div class="chat-input">
+      <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+      <button id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
   </div>
 
   <script>
-    // --- 기존 UI/애니메이션 관련 스크립트는 그대로 둡니다. ---
-    const title = document.getElementById('helper-title');
-    const text = "Helper";
-    let revealed = Array(text.length).fill(false); // 각 글자가 나타났는지 여부를 추적
+    document.addEventListener('DOMContentLoaded', () => {
+      // ✨ [IMPROVEMENT] 개선된 인트로 애니메이션 & 최종 레이아웃
+      const tl = gsap.timeline({ defaults: { ease: "power2.inOut" } });
+      tl.to('#helper-title', {
+        y: '-40px', // 위로 덜 이동
+        scale: 0.95, // 덜 작아짐
+        marginBottom: '30px', // 최종 간격 줄이기
+        duration: 1.2,
+        delay: 0.5,
+      }).to('#home-chat-input', {
+        y: '-20px', // 입력창도 살짝 위로 이동
+        opacity: 1,
+        duration: 1,
+      }, "-=1.0"); // 겹치는 시간을 늘려 더 부드럽게
+      
+      const parallaxElements = document.querySelectorAll('[data-depth]');
+      document.body.addEventListener('mousemove', (e) => {
+          let x = (e.clientX - window.innerWidth / 2) / window.innerWidth;
+          let y = (e.clientY - window.innerHeight / 2) / window.innerHeight;
+          parallaxElements.forEach(el => {
+              const depth = el.getAttribute('data-depth');
+              gsap.to(el, { x: -x * 100 * depth, y: -y * 100 * depth, duration: 1, ease: "power2.out" });
+          });
+      });
+    });
 
-    // ★★★ 1. 랜덤으로 글자를 나타내는 함수 (복원) ★★★
-    function showRandomChar() {
-      // 아직 나타나지 않은 글자들의 인덱스를 찾습니다.
-      const hiddenIndices = revealed.map((v, i) => !v ? i : -1).filter(i => i !== -1);
-      
-      // 모든 글자가 나타났으면 함수를 종료합니다.
-      if (hiddenIndices.length === 0) return;
-      
-      // 숨겨진 글자 중 하나를 랜덤으로 선택합니다.
-      const randomIndex = hiddenIndices[Math.floor(Math.random() * hiddenIndices.length)];
-      revealed[randomIndex] = true; // 선택된 글자를 '나타남'으로 표시
-      
-      // 현재까지 나타난 글자와 숨겨진 글자(_)를 조합하여 제목을 업데이트합니다.
-      title.textContent = text.split('').map((char, index) => revealed[index] ? char : '_' ).join('');
-      
-      // 약간의 딜레이를 두고 다음 글자를 나타내기 위해 함수를 다시 호출합니다.
-      setTimeout(showRandomChar, 100);
-    }
-
-    // ★★★ 2. GSAP 애니메이션과 함께 실행되도록 수정 ★★★
-    // 페이지 로드 후 0.5초 뒤에 애니메이션 시작
-    setTimeout(() => {
-        // GSAP으로 제목을 서서히 나타나게 합니다.
-        gsap.to(title, { opacity: 1, duration: 1.5 });
-        // 동시에 랜덤 글자 나타내기 애니메이션을 시작합니다.
-        showRandomChar();
-    }, 500);
-    
-    // --- 필요한 모든 DOM 요소를 미리 가져옵니다. ---
     const homeInput = document.getElementById("home-input");
     const startChatBtn = document.getElementById("start-chat");
     const chatInput = document.getElementById("chat-input");
@@ -91,145 +186,66 @@
     const homeContainer = document.getElementById("home-container");
     const chatInputContainer = document.getElementById("chat-input-container");
 
-    // --- CSRF 토큰을 가져오는 함수 (Django 필수) ---
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === name + "=") {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    }
+    function getCookie(name) { let cookieValue = null; if (document.cookie && document.cookie !== "") { const cookies = document.cookie.split(";"); for (let i = 0; i < cookies.length; i++) { const cookie = cookies[i].trim(); if (cookie.substring(0, name.length + 1) === name + "=") { cookieValue = decodeURIComponent(cookie.substring(name.length + 1)); break; } } } return cookieValue; }
+    function appendMessage(text, sender) { const msgDiv = document.createElement("div"); msgDiv.classList.add("message", sender); msgDiv.innerHTML = text; chatbox.appendChild(msgDiv); chatbox.scrollTop = chatbox.scrollHeight; return msgDiv; }
+    function appendTypingIndicator() { const msgDiv = document.createElement("div"); msgDiv.classList.add("message", "bot"); msgDiv.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`; chatbox.appendChild(msgDiv); chatbox.scrollTop = chatbox.scrollHeight; return msgDiv; }
 
-    // --- 메시지를 화면에 추가하는 헬퍼 함수 ---
-    function appendMessage(text, sender) {
-      const msgDiv = document.createElement("div");
-      msgDiv.classList.add("message", sender);
-      msgDiv.innerText = text; // 초기 텍스트 설정
-      chatbox.appendChild(msgDiv);
-      chatbox.scrollTop = chatbox.scrollHeight; // 자동 스크롤
-      return msgDiv; // 나중에 내용을 업데이트하기 위해 div 요소를 반환
-    }
-
-    // --- ✨ 핵심 ✨: 스트리밍 API를 호출하고 처리하는 새로운 sendMessage 함수 ---
     async function sendMessage(message) {
       if (!message.trim()) return;
-
-      // 1. 사용자 메시지를 화면에 즉시 표시
       appendMessage(message, "user");
-      chatInput.value = ""; // 입력창 비우기
-
-      // 2. 봇이 응답하는 동안 입력창 비활성화
-      chatInput.disabled = true;
-      sendBtn.disabled = true;
-
-      // 3. 봇의 답변이 표시될 빈 공간과 타이핑 커서를 먼저 생성
-      const botMessageDiv = appendMessage("", "bot");
-      botMessageDiv.classList.add("typing-cursor");
+      chatInput.value = "";
+      chatInput.disabled = true; sendBtn.disabled = true;
+      const botMessageDiv = appendTypingIndicator();
 
       try {
-        // 4. '/chat_api' 엔드포인트로 스트리밍 요청 전송
-        const response = await fetch('/chat_api', { // API URL 확인!
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-          },
-          body: JSON.stringify({ message: message })
-        });
-
-        if (!response.ok) {
-          throw new Error(`서버 오류: ${response.status}`);
-        }
-
-        // 5. 스트림 데이터를 실시간으로 읽고 처리
+        const response = await fetch('/chat_api', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }, body: JSON.stringify({ message: message }) });
+        if (!response.ok) throw new Error(`서버 오류: ${response.status}`);
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullResponse = '';
-
         while (true) {
           const { value, done } = await reader.read();
-          if (done) break; // 스트림이 끝나면 루프 종료
-
-          const chunk = decoder.decode(value);
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
           const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const jsonData = JSON.parse(line.substring(6));
-                if (jsonData.token) {
-                  fullResponse += jsonData.token;
-                  // innerText를 사용해 실시간으로 텍스트를 업데이트 (타이핑 효과)
-                  botMessageDiv.innerText = fullResponse;
-                  chatbox.scrollTop = chatbox.scrollHeight; // 새 메시지가 보일 때마다 스크롤
-                }
-                if (jsonData.error) {
-                   botMessageDiv.innerText = '오류: ' + jsonData.error;
-                }
-              } catch (e) {
-                // JSON 파싱 오류는 무시 (빈 줄 등)
-              }
-            }
-          }
+          for (const line of lines) { if (line.startsWith('data: ')) { try { const jsonData = JSON.parse(line.substring(6)); if (jsonData.token) fullResponse += jsonData.token; if (jsonData.error) fullResponse = '오류: ' + jsonData.error; } catch (e) {} } }
         }
-        
-        // 6. 스트림이 모두 끝나면, 최종 텍스트를 Markdown으로 렌더링
-        botMessageDiv.innerHTML = marked.parse(fullResponse);
+
+        gsap.to(botMessageDiv.querySelector('.typing-dots'), {
+            opacity: 0, duration: 0.3,
+            onComplete: () => {
+                botMessageDiv.innerHTML = marked.parse(fullResponse);
+                gsap.from(botMessageDiv.children, { opacity: 0, y: 15, duration: 0.4, stagger: 0.08, ease: "power1.out" });
+            }
+        });
 
       } catch (error) {
-        botMessageDiv.innerText = '죄송합니다, 답변을 생성하는 중 오류가 발생했습니다.';
+        botMessageDiv.innerHTML = '죄송합니다, 답변을 생성하는 중 오류가 발생했습니다.';
         console.error("Error sending message:", error);
       } finally {
-        // 7. 응답이 끝나면(성공/실패 무관) 입력창을 다시 활성화
-        botMessageDiv.classList.remove("typing-cursor");
-        chatInput.disabled = false;
-        sendBtn.disabled = false;
-        chatInput.focus(); // 사용자가 바로 다음 질문을 입력할 수 있도록 포커스
+        chatInput.disabled = false; sendBtn.disabled = false; chatInput.focus();
       }
     }
 
-    // --- 이벤트 리스너 설정 ---
     startChatBtn.addEventListener("click", () => {
       const message = homeInput.value;
       if (!message.trim()) return;
-      // 애니메이션과 함께 채팅창으로 전환
-      gsap.to(homeContainer, { y: "-50%", opacity: 0, duration: 0.7, onComplete: () => {
-        homeContainer.style.display = "none";
-        chatbox.style.display = "flex";
-        chatInputContainer.style.display = "flex";
-        sendMessage(message); // 첫 메시지 전송
-      }});
+      
+      gsap.to(homeContainer, { 
+        y: "-50px", opacity: 0, duration: 0.6, ease: "power2.in",
+        onComplete: () => {
+          homeContainer.style.display = "none";
+          chatbox.style.display = "flex";
+          gsap.to(chatInputContainer, { opacity: 1, visibility: 'visible', duration: 0.5 });
+          gsap.from(chatbox, { opacity: 0, y: 30, duration: 0.5 });
+          sendMessage(message);
+        }
+      });
     });
 
-    homeInput.addEventListener("keypress", e => {
-      if (e.key === "Enter") startChatBtn.click();
-    });
-
-    sendBtn.addEventListener("click", () => {
-      sendMessage(chatInput.value);
-    });
-
-    chatInput.addEventListener("keypress", e => {
-      if (e.key === "Enter") {
-        sendMessage(chatInput.value);
-      }
-    });
-  </script>
-
-  <script>
-    // particles.js 스크립트는 변경 없이 그대로 둡니다.
-    particlesJS("particles-js", {
-      particles: { number: { value: 120 }, color: { value: "#ffffff" }, shape: { type: "circle" }, opacity: { value: 0.6, random: true }, size: { value: 2, random: true }, move: { enable: true, speed: 0.35, direction: "none", random: true, out_mode: "out" }, line_linked: { enable: false } },
-      interactivity: { events: { onhover: { enable: false }, onclick: { enable: false } } },
-      retina_detect: true
-    });    
+    homeInput.addEventListener("keypress", e => { if (e.key === "Enter") startChatBtn.click(); });
+    sendBtn.addEventListener("click", () => sendMessage(chatInput.value));
+    chatInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(chatInput.value); });
   </script>
 </body>
 </html>
