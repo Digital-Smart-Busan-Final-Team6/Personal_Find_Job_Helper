@@ -190,9 +190,7 @@
         stroke-dasharray: 283;
         stroke-dashoffset: 283;
         animation: progress-bar-fill 2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-        animation-delay: calc(
-          var(--animation-order) * 0.15s + 0.5s
-        );
+        animation-delay: calc(var(--animation-order) * 0.15s + 0.5s);
       }
       .progress-circle .score-text {
         position: absolute;
@@ -298,80 +296,99 @@
           이력서를 기반으로 가장 적합한 공고를 찾았습니다.
         </p>
       </div>
-      
+
       <div class="instruction-text">
         <i class="fas fa-lightbulb"></i>분석하고 싶은 공고를 클릭하여 선택한 후,
         하단 버튼으로 리포트를 생성하세요.
       </div>
-      
-      <form action="{% url 'generate_final_report' %}" method="post" id="final-report-form">
+
+      <form
+        action="{% url 'generate_final_report' %}"
+        method="post"
+        id="final-report-form"
+      >
         {% csrf_token %}
         <input type="hidden" name="resume_ids" value="{{ resume_ids_str }}" />
 
         <div id="job-list-container">
           {% for job in recommended_jobs %}
-            <div
-              class="job-card"
-              data-job-id="{{ job.공고 ID }}" {# utils.py 파싱 결과 키 이름 #}
-              style="--animation-order: {{ forloop.counter0 }};"
-            >
-              <!-- 왼쪽: 순위 & 적합도 -->
-              <div class="job-card-rank-score">
-                <div class="rank-badge rank-{{ forloop.counter }}">
-                  <i class="fas fa-crown"></i>
-                  <span>{{ forloop.counter }}위</span>
-                </div>
-                <div
-                  class="progress-circle"
-                  style="--progress-offset: calc(283 * (1 - {{ job.적합도_정규화 }}));"
+          <div
+            class="job-card"
+            data-job-id="{{ job.job_id }}"
+            {#
+            ★★★
+            수정된
+            부분
+            ★★★
+            #}
+            style="--animation-order: {{ forloop.counter0 }};"
+          >
+            <!-- 왼쪽: 순위 & 적합도 -->
+            <div class="job-card-rank-score">
+              <div class="rank-badge rank-{{ forloop.counter }}">
+                <i class="fas fa-crown"></i>
+                <span>{{ forloop.counter }}위</span>
+              </div>
+              <div
+                class="progress-circle"
+                style="--progress-offset: calc(283 * (1 - {{ job.적합도_정규화 }}));"
+              >
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                  <circle class="bg-circle" cx="50" cy="50" r="45"></circle>
+                  <circle class="fg-circle" cx="50" cy="50" r="45"></circle>
+                </svg>
+                <div class="score-text">{{ job.적합도_퍼센트 }}%</div>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 공고 정보 -->
+            <div class="job-card-details">
+              <h5 class="job-title">{{ job.제목 }}</h5>
+
+              {% if job.회사명 %}
+              <p class="company-name">{{ job.회사명 }}</p>
+              {% endif %}
+
+              <div class="job-meta-info">
+                {% if job.경력 %}
+                <span class="meta-item"
+                  ><i class="fas fa-briefcase"></i> {{ job.경력 }}</span
                 >
-                  <svg width="100" height="100" viewBox="0 0 100 100">
-                    <circle class="bg-circle" cx="50" cy="50" r="45"></circle>
-                    <circle class="fg-circle" cx="50" cy="50" r="45"></circle>
-                  </svg>
-                  <div class="score-text">{{ job.적합도_퍼센트 }}%</div>
-                </div>
-              </div>
-
-              <!-- 오른쪽: 공고 정보 (개선된 레이아웃) -->
-              <div class="job-card-details">
-                <h5 class="job-title">{{ job.제목 }}</h5>
-                
-                {% if job.회사명 %}
-                  <p class="company-name">{{ job.회사명 }}</p>
-                {% endif %}
-
-                <div class="job-meta-info">
-                  {% if job.경력 %}
-                    <span class="meta-item"><i class="fas fa-briefcase"></i> {{ job.경력 }}</span>
-                  {% endif %}
-                  {% if job.근무지 %}
-                    <span class="meta-item"><i class="fas fa-map-marker-alt"></i> {{ job.근무지 }}</span>
-                  {% endif %}
-                </div>
-
-                {% if job.기술스택 %}
-                  <div class="tech-stack">
-                    {% for tech in job.기술스택|slice:":5" %} {# 기술 스택이 너무 많을 경우 5개만 표시 #}
-                      <span class="tech-tag">{{ tech }}</span>
-                    {% endfor %}
-                  </div>
+                {% endif %} {% if job.근무지 %}
+                <span class="meta-item"
+                  ><i class="fas fa-map-marker-alt"></i> {{ job.근무지 }}</span
+                >
                 {% endif %}
               </div>
 
-              <!-- 숨겨진 체크박스 -->
-              <input
-                type="checkbox"
-                class="job-checkbox"
-                name="selected_jobs"
-                value="{{ job.공고 ID }}" {# utils.py 파싱 결과 키 이름 #}
-                style="display: none"
-              />
+              {% if job.기술스택 %}
+              <div class="tech-stack">
+                {% for tech in job.기술스택|slice:":5" %}
+                <span class="tech-tag">{{ tech }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
             </div>
+
+            <!-- 숨겨진 체크박스 -->
+            <input
+              type="checkbox"
+              class="job-checkbox"
+              name="selected_jobs"
+              value="{{ job.job_id }}"
+              {#
+              ★★★
+              수정된
+              부분
+              ★★★
+              #}
+              style="display: none"
+            />
+          </div>
           {% empty %}
-            <div class="alert alert-warning text-center" role="alert">
-              추천된 공고가 없습니다. 다른 이력서를 선택하여 다시 시도해보세요.
-            </div>
+          <div class="alert alert-warning text-center" role="alert">
+            추천된 공고가 없습니다. 다른 이력서를 선택하여 다시 시도해보세요.
+          </div>
           {% endfor %}
         </div>
 
