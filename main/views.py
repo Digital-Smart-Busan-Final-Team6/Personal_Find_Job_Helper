@@ -371,7 +371,6 @@ def recommend_recommending_view(request):
     return redirect("recommend_result")
 
 # --- [View 10] 추천 결과 페이지 뷰 ---
-# --- [View 10] 추천 결과 페이지 뷰 ---
 def recommend_result_view(request):
     recommended_jobs_from_session = request.session.get("recommended_jobs")
     selected_resume_ids = request.session.get("selected_resume_ids", [])
@@ -471,50 +470,33 @@ def generate_final_report_view(request):
         ],
     )
 
+    # 3) 공고 상세 정보 로드
     job_detail = None
     try:
         job_file_path = settings.BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
         with open(job_file_path, 'r', encoding='utf-8') as f:
             all_jobs = json.load(f)
-
-        if 'postings' in all_jobs and isinstance(all_jobs['postings'], dict):
-            job_data_source = all_jobs['postings']
-        else:
-            job_data_source = all_jobs
-
+        job_data_source = all_jobs.get('postings', all_jobs)
         job_detail = job_data_source.get(selected_job_id_str)
-
     except Exception as e:
         print(f"공고 정보 조회 중 오류 발생: {e}")
 
-    # 3) Agent 호출 및 리포트 생성 (이력서만 넘김)
-    agent = get_agent_chain(mode = "job")
+    # 4) Agent 호출 및 리포트 생성
+    agent = get_agent_chain(mode="job")
     if not request.session.session_key:
         request.session.create()
     session_id = request.session.session_key
 
-    # 이력서 dict를 JSON 문자열로
-    resume_json = json.dumps(resume_dict, ensure_ascii=False)
-
-    # 한 줄 호출: 툴 이름과 JSON
-    prompt = (
-        f"""
-        이력서를 기반으로 채용공고와 매칭되는 상세 리포트를 생성합니다.
-        
-        ## 이력서 정보
-        {resume_dict}
-        
-        ## 공고 정보
-        {job_detail}
-        
-        다음과 같이 write_job_report 도구를 호출해 주세요:
-        write_job_report(resume={resume_dict}, job={job_detail})
-        
-        
-        
-        중요: resume, job_detail 파라미터에 위의 JSON 데이터를 정확히 전달해 주세요.
-        """
-    )
+    prompt = f"""
+    이력서를 기반으로 채용공고와 매칭되는 상세 리포트를 생성합니다.
+    ## 이력서 정보
+    {resume_dict}
+    ## 공고 정보
+    {job_detail}
+    다음과 같이 write_job_report 도구를 호출해 주세요:
+    write_job_report(resume={resume_dict}, job={job_detail})
+    중요: resume, job_detail 파라미터에 위의 JSON 데이터를 정확히 전달해 주세요.
+    """
 
     report_markdown = "### 분석 실패\nAI 리포트 생성 중 오류가 발생했습니다."
     try:
@@ -526,11 +508,45 @@ def generate_final_report_view(request):
     except Exception as e:
         report_markdown = f"### 리포트 생성 오류\n{e}"
 
-    # 4) 결과 렌더링
-    resumes = Resume.objects.filter(id__in=resume_ids_str.split(","))
+    # `**Answer:**` 또는 `Answer:` 형태를 모두 제거하도록 정규표현식 수정
+    clean_report = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", report_markdown, flags=re.IGNORECASE).strip()
+    
+    #  맨 앞에 남은 '**' 후처리
+    if clean_report.startswith("**"):
+        clean_report = clean_report[2:].strip()
+
+    # 5. 리포트에서 매칭 키워드 추출하기
+    # (이하 코드는 clean_report를 사용하므로 동일)
+    matching_keywords = []
+    try:
+        skills_in_resume = []
+        if resume_obj.skills:
+            try:
+                skills_list = json.loads(resume_obj.skills)
+                skills_in_resume = [item['value'] for item in skills_list if 'value' in item]
+            except json.JSONDecodeError:
+                skills_in_resume = [s.strip() for s in resume_obj.skills.split(',')]
+        
+        match = re.search(r"(강점|매칭)\s*분석\s*\n+(.*?)(?=\n\n##|\n\n\d+\.|$)", clean_report, re.DOTALL)
+        analysis_section = match.group(2) if match else clean_report
+
+        report_text_lower = analysis_section.lower()
+        found_keywords = []
+        for skill in skills_in_resume:
+            if re.search(r'\b' + re.escape(skill.lower()) + r'\b', report_text_lower):
+                found_keywords.append(skill)
+        
+        matching_keywords = found_keywords[:6]
+
+    except Exception as e:
+        print(f"키워드 추출 중 오류 발생: {e}")
+        matching_keywords = []
+
+    # 6. 템플릿에 전달할 최종 데이터
     context = {
-        "resumes": resumes,
-        "report_markdown": report_markdown,
+        "selected_resume": resume_obj,
+        "matching_keywords": matching_keywords,
+        "report_markdown": clean_report, 
         "current_page": "resume",
         "switch_url_name": "home",
     }
