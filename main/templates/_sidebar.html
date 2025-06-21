@@ -1,6 +1,4 @@
-{% comment %} main/templates/_sidebar.html {% endcomment %} {% comment %} 이
-파일은 HTML 구조와 CSS 스타일을 모두 포함하는 재사용 가능한 사이드바
-'컴포넌트'입니다. {% endcomment %}
+{% comment %} main/templates/_sidebar.html {% endcomment %}
 
 <style>
   /* 1. 사이드바 기본 틀 */
@@ -23,7 +21,7 @@
     align-items: flex-start;
   }
 
-  /* 2. 사이드바 헤더 (가장 단순한 Flexbox 정렬 방식으로 복귀) */
+  /* 2. 사이드바 헤더 */
   .sidebar-header {
     width: 100%;
     margin-bottom: 40px;
@@ -32,15 +30,15 @@
     height: 24px;
     display: flex;
     align-items: center;
-    justify-content: center; /* 좁을 때: 중앙 정렬 */
+    justify-content: center;
     transition: all 0.3s ease-in-out;
     box-sizing: border-box;
   }
   .sidebar:hover .sidebar-header {
-    justify-content: space-between; /* 넓을 때: 양쪽 끝으로 정렬 */
+    justify-content: space-between;
   }
 
-  /* 3. 헤더 안의 아이콘들 (가장 단순한 방식으로 복귀) */
+  /* 3. 헤더 안의 아이콘들 */
   .menu-toggle, .page-switch-icon {
     font-size: 1.5rem;
     color: #a9a9d4;
@@ -50,16 +48,16 @@
   }
 
   .page-switch-icon {
-    display: none; /* 평소에는 완전히 숨김 */
+    display: none;
   }
   .sidebar:hover .page-switch-icon {
-    display: inline-block; /* 마우스를 올렸을 때만 나타남 */
+    display: inline-block;
   }
   .page-switch-icon:hover {
     color: white;
   }
 
-  /* 4. 메뉴 목록 (이하 변경 없음) */
+  /* 4. 메뉴 목록 */
   .nav-menu {
     list-style: none;
     padding: 0;
@@ -74,6 +72,7 @@
     text-decoration: none;
     white-space: nowrap;
     transition: background 0.2s, color 0.2s;
+    gap: 20px;
   }
   .nav-item a:hover {
     background: rgba(255, 255, 255, 0.1);
@@ -81,19 +80,18 @@
   }
 
   .nav-item a.active {
-    background: rgba(255, 255, 255, 0.15); /* hover보다 조금 더 진하게 */
+    background: rgba(255, 255, 255, 0.15);
     color: white;
-    font-weight: 700; /* 폰트를 살짝 두껍게 */
-    box-shadow: inset 3px 0 0 0 white; /* 왼쪽에 흰색 선으로 강조 */
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 0 white;
+  }
+  
   .nav-icon {
     font-size: 1.2rem;
-    width: 24px;
-    text-align: center;
     flex-shrink: 0;
   }
-  }
+
   .nav-text {
-    margin-left: 20px;
     font-family: 'Inter', sans-serif;
     font-weight: 600;
     opacity: 0;
@@ -124,11 +122,11 @@
   }
 
   .page-switch-icon i {
-  display: inline-block;
-  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    display: inline-block;
+    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   }
   .page-switch-icon:hover i {
-  transform: rotate(360deg);
+    transform: rotate(360deg);
   }
 </style>
 
@@ -143,43 +141,42 @@
     {% if current_page == 'home' %}
     <li class="nav-item">
       <a href="#">
-        <i class="fas fa-plus-square nav-icon"></i>
+        <i class="fas fa-plus-square fa-fw nav-icon"></i> <!-- ★★★ fa-fw 추가 ★★★ -->
         <span class="nav-text">새 채팅</span>
       </a>
     </li>
     <li class="nav-item">
       <a href="#">
-        <i class="fas fa-list-ul nav-icon"></i>
+        <i class="fas fa-list-ul fa-fw nav-icon"></i> <!-- ★★★ fa-fw 추가 ★★★ -->
         <span class="nav-text">채팅 목록</span>
       </a>
     </li>
     {% elif current_page == 'resume' %}
     <li class="nav-item">
       <a href="#" id="start-recommend-report">
-        <i class="fas fa-lightbulb nav-icon"></i>
+        <i class="fas fa-lightbulb fa-fw nav-icon"></i> <!-- ★★★ fa-fw 추가 ★★★ -->
         <span class="nav-text">추천기반 리포트 생성</span>
       </a>
     </li>
     <li class="nav-item">
       <a href="#" id="start-job-search-report">
-        <i class="fas fa-search nav-icon"></i>
+        <i class="fas fa-search fa-fw nav-icon"></i> <!-- ★★★ fa-fw 추가 ★★★ -->
         <span class="nav-text">공고검색 리포트 생성</span>
       </a>
     </li>
     <div class="divider"></div>
     <li class="nav-item">
       <a href="#">
-        <i class="fas fa-file-alt nav-icon"></i>
+        <i class="fas fa-file-alt fa-fw nav-icon"></i> <!-- ★★★ fa-fw 추가 ★★★ -->
         <span class="nav-text">매칭 리포트</span>
       </a>
     </li>
     <li class="nav-item">
       <a href="#">
-        <i class="fas fa-comments nav-icon"></i>
+        <i class="fas fa-comments fa-fw nav-icon"></i> <!-- ★★★ fa-fw 추가 ★★★ -->
         <span class="nav-text">대화 목록</span>
       </a>
     </li>
     {% endif %}
   </ul>
 </nav>
-
