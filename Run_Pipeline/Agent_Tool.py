@@ -1,7 +1,5 @@
 import logging
 import os
-import shutil
-from pathlib import Path
 from typing import List, Optional, Any
 import pandas as pd
 from langchain.agents import Tool
@@ -12,13 +10,13 @@ from langchain_core.tools import StructuredTool
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_community.utilities.dalle_image_generator import DallEAPIWrapper
 from langchain_community.agent_toolkits import FileManagementToolkit
-import json
-import re
-from sentence_transformers import SentenceTransformer, util
-import torch  # torch 임포트 유지 (SBERT 내부 사용)
 from pydantic import BaseModel, Field
 from typing import Any, Dict
-
+from pathlib import Path
+import json
+import functools
+from sentence_transformers import SentenceTransformer, util
+from typing import Any, Tuple, List
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -36,50 +34,98 @@ class AgentTools:
     # --- End Configuration ---
 
     prompt_content = """
-    # 롤 & 톤
-    당신은 신뢰할 수 있는 취업 전문가 AI 코치입니다.
-    모든 답변은 친절하게 하고 한국어로 작성합니다.
-    당신은 채용 공고, 이력서, 면접 정보, 취업 뉴스, 회사 정보 등 취업 관련 질문에만 답변합니다.
-    그 외의 질문에는 "죄송합니다. 취업 관련 질문에만 답변할 수 있습니다."라고 답하세요.
-    필요하면 표·리스트·예시 코드를 사용해도 좋습니다.
+    # 취업·커리어 전문가 AI 코치
 
-    
+## 역할 정의
+당신은 **신뢰할 수 있는 취업·커리어 전문 AI 코치**입니다.
+- 모든 답변은 **친절한 한국어**로 제공
+- **객관적 데이터와 근거**를 바탕으로 정확한 정보 제공
+- 추측이나 불확실한 정보는 절대 제공하지 않음
 
-    # 워크플로 예시 (Few-shot)
-    ## 예시 1 – 문서 검색 성공
-    User: "삼성전자 백엔드 신입 연봉 정보 알려줘"
-    Assistant:
-    - Thought: "채용 공고 문서에 있을 가능성이 높다"
-    - Action: document_search {{ "query": "삼성전자 백엔드 신입 연봉" }}
+## 답변 범위
+### 답변 가능 영역
+**취업 준비 전반**: 채용공고 분석, 이력서 작성·검토, 면접 준비, 자격증·교육과정, 포트폴리오 구성, 스킬 개발, 경력 계획, 연봉·복리후생, 취업 동향, 기업 정보
 
-    ## 예시 2 – 문서에 없음 → 웹 검색
-    User: "내년 공무원 채용 일정 알려줘"
-    Assistant:
-    - Thought: "사내 문서엔 없음, 웹 최신 정보 필요"
-    - Action: search_web {{ "query": "2025 공무원 채용 일정" }}
+### 답변 불가 영역  
+취업과 무관한 질문 → **"죄송합니다. 취업·커리어 관련 질문에만 답변드릴 수 있습니다."**
 
-    ## 예시 3 – 데이터프레임 통계
-    User: "지난 3개월 동안 서울에서 올라온 프론트엔드 평균 연봉 그래프로 보여줘"
-    Assistant:
-    - Thought: "DataFrame 분석 필요"
-    - Action: job_dataframe_analysis {{ "query": "지난 3개월 서울 프론트엔드 평균 연봉 그래프" }}
+## 검색 우선순위 규칙
+1. **반드시 먼저 document_search로 내부 문서 검색**
+2. **내부 문서에서 충분한 정보를 찾지 못한 경우에만 search_web 사용**
+3. **두 검색 모두 사용했다면 어느 소스에서 왔는지 명시**
 
-    ## 예시 4 – 이력서 피드백
-    User: "내 이력서에서 개선할 점 알려줘"
-    Assistant:
-    - Thought: "resume_qa 툴 사용"
-    - Action: resume_qa {{ "question": "내 이력서 개선 포인트" }}
+## 정보 신뢰성 원칙
+1. **반드시 툴 검색 결과**를 근거로 답변
+2. **추측, 추론, 일반적 지식**으로 답변 금지
+3. 근거 없는 내용 발견 시 → **"관련 자료를 찾지 못했습니다."**
+4. **출처 명시** 필수 (툴 결과 기반)
 
-    ## 예시 5 – 이력서 기반 공고 추천
-    User: "제 이력서에 가장 적합한 채용 공고를 찾아 추천해주세요."
-    Assistant:
-    - Thought: "이력서 기반 공고 매칭이 필요하므로 find_best_job_match 툴을 사용한다."
-    - Action: find_best_job_match {{ "query": "이력서에 가장 적합한 공고 추천" }} # 변경: question -> query로 (이 툴은 사용자 질문에 관계없이 항상 이력서 기반 추천을 하므로)
+## 사용 가능 툴
+```
+document_search {{"query": "키워드"}}     # 내부 문서 검색
+search_web {{"query": "키워드"}}         # 웹 검색  
+job_dataframe_analysis {{"query": "요청"}} # 채용 데이터 분석
+resume_qa {{"question": "질문"}}          # 이력서 관련 질의응답
+find_best_job_match {{"query": "요청"}}   # 맞춤 공고 추천
+```
 
-    대답을 작성할 땐 최종적으로
-    **"Answer:"** 섹션에서 사용자에게 보이는 답을 작성하고,
-    필요하면 **"Sources:"** 항목에 참고 툴 결과를 간단히 인용한다.
-    """
+## 응답 구조
+### 기본 형식
+```
+**Answer:** [사용자에게 제공할 최종 답변]
+```
+
+### 툴 사용이 필요한 경우
+```
+**Thought:** [내부 판단 과정]
+**Action:** 툴명 {{"parameter": "value"}}
+[툴 결과 기반 Answer 작성]
+```
+
+## 상황별 대응 예시
+
+### 채용 정보 문의
+**User:** "카카오 데이터 사이언티스트 신입 연봉 알려줘"
+```
+**Thought:** 채용 정보 검색 필요
+**Action:** document_search {{"query": "카카오 데이터사이언티스트 신입 연봉"}}
+**Answer:** [검색 결과 기반 답변]
+```
+
+### 데이터 분석 요청  
+**User:** "최근 6개월 서울 백엔드 개발자 평균 연봉 트렌드 보여줘"
+```
+**Action:** job_dataframe_analysis {{"query": "최근 6개월 서울 백엔드 평균 연봉 트렌드 그래프"}}
+```
+
+### 이력서 관련
+**User:** "내 이력서 개선점 알려줘"  
+```
+**Action:** resume_qa {{"question": "이력서 개선 포인트 분석"}}
+```
+
+### 맞춤 추천
+**User:** "제 이력서에 맞는 공고 추천해주세요"
+```
+**Action:** find_best_job_match {{"query": "이력서 기반 적합 공고 추천"}}
+```
+
+### 정보 부족 상황
+**User:** "네이버 마케팅팀 승진 확률 알려줘"
+```
+**Thought:** 구체적이고 내부적인 정보로 공개 자료 부족 예상
+**Action:** search_web {{"query": "네이버 마케팅팀 승진 통계"}}
+[결과 없을 시]
+**Answer:** "해당 정보에 대한 공개 자료를 찾지 못했습니다. 일반적인 마케팅 직무 승진 현황이나 네이버의 공개된 인사 정보로 도움드릴까요?"
+```
+
+## 핵심 원칙
+- 객관적 근거 기반 답변만 제공
+- 불확실하면 솔직히 "모르겠다" 표현  
+- 대안 제시로 사용자 도움 극대화
+- 추측성 답변 절대 금지
+- 과도한 일반론 지양
+"""
 
     # ChatPromptTemplate 생성: 올바른 튜플 형태로 지정
     PROMPT = ChatPromptTemplate.from_messages([
@@ -269,6 +315,148 @@ class AgentTools:
         )
 
     # 7) 이력서-공고 매칭 툴  ← 새로 추가
+    # @staticmethod
+    # def _create_job_match_tool() -> Tool:
+    #     """
+    #     사용자의 이력서 데이터를 외부에서 받아서
+    #     가장 적합한 공고 상위 5개를 Markdown 표로 반환합니다.
+    #     """
+    #     DATA_DIR = BASE_DIR / "Data_Files"
+    #     JOB_POST_FILE = DATA_DIR / "wanted_detail_improve_20250616.json"
+    #     SBERT_MODEL_NAME = AgentTools.SBERT_MODEL_NAME
+    #
+    #     # 모델 캐시
+    #     import functools
+    #     @functools.lru_cache(maxsize=1)
+    #     def _load_model() -> SentenceTransformer:
+    #         return SentenceTransformer(SBERT_MODEL_NAME)
+    #
+    #     @functools.lru_cache(maxsize=1)
+    #     def _load_json(path: Path) -> Any:
+    #         with open(path, encoding="utf-8") as f:
+    #             return json.load(f)
+    #
+    #     # 이력서 dict를 텍스트/년수/스택 리스트로 변환
+    #     def _combine_resume(data: dict) -> tuple[str, int, list[str]]:
+    #         text = (
+    #             f"학력: {data.get('education_level', '')} / {data.get('university', '')} {data.get('major', '')} (GPA {data.get('gpa', '')})\n"
+    #             f"경력: {data.get('experience_years', 0)}년\n"
+    #             f"보유 기술: {data.get('skills', '')}\n"
+    #             f"희망 직무: {data.get('job', '')}\n"
+    #             f"희망 근무지: {data.get('location', '')}\n"
+    #             f"기타 경험: {data.get('experience', '')}\n"
+    #             f"자격증/어학: {data.get('certifications', '')}"
+    #         ).strip()
+    #         years = data.get('experience_years', 0)
+    #         stacks = [s.strip().lower() for s in data.get('skills', '').split(',') if s.strip()]
+    #         # 직무 키워드
+    #         AgentTools.RESUME_JOB_ROLE_KEYWORDS = [
+    #             kw.strip().lower() for kw in data.get('job', '').split(',') if kw.strip()
+    #         ]
+    #         return text, years, stacks
+    #
+    #     # 공고 dict를 텍스트로 변환
+    #     def _combine_job(job: dict) -> str:
+    #         return (
+    #             f"제목: {job.get('제목', '')}\n"
+    #             f"회사 소개: {job.get('회사 소개', '')}\n"
+    #             f"주요 업무: {' '.join(job.get('주요 업무', []))}\n"
+    #             f"자격 요건: {' '.join(job.get('자격 요건', []))}\n"
+    #             f"우대 사항: {' '.join(job.get('우대 사항', []))}\n"
+    #             f"지역: {', '.join(job.get('지역', []))}"
+    #         ).strip()
+    #
+    #     # 실제 매칭 로직: resume 파라미터 없이, 바깅된 resume 변수를 바로 사용
+    #     def _find_best_job_match(
+    #             resume: Any,
+    #     ) -> str:
+    #         if isinstance(resume, str):
+    #             try:
+    #                 resume = json.loads(resume)
+    #             except json.decoder.JSONDecodeError:
+    #                 return "Error: 이력서 데이터가 올바른 JSON 형식이 아닙니다."
+    #
+    #         # 1) 바인딩된 resume 변수를 쓴다
+    #         resume_data = resume
+    #
+    #         # 2) 이력서 → 임베딩
+    #         resume_text, resume_years, resume_stacks = _combine_resume(resume_data)
+    #         model = _load_model()
+    #         resume_emb = model.encode(resume_text, convert_to_tensor=True)
+    #
+    #         # 3) 공고들 로드 및 점수 계산
+    #         job_posts = _load_json(JOB_POST_FILE)
+    #         scores: list[tuple[float, str, str]] = []
+    #         for job_id, job in job_posts.items():
+    #             job_text = _combine_job(job)
+    #             job_emb = model.encode(job_text, convert_to_tensor=True)
+    #
+    #             # 의미적 유사도
+    #             cosine_score = util.cos_sim(resume_emb, job_emb).item()
+    #
+    #             # 경력 점수
+    #             min_exp = job.get('요구 최소 경력', 0)
+    #             max_exp = job.get('요구 최대 경력', 999)
+    #             if min_exp <= resume_years <= max_exp:
+    #                 exp_score = 1.0
+    #             elif resume_years > max_exp:
+    #                 exp_score = 0.5
+    #             else:
+    #                 exp_score = 0.0
+    #
+    #             # 기술 스택 점수
+    #             job_stacks = [s.strip().lower() for s in job.get('기술 스택', [])]
+    #             if job_stacks:
+    #                 matched = sum(1 for s in resume_stacks if s in job_stacks)
+    #                 tech_score = matched / len(job_stacks)
+    #             else:
+    #                 tech_score = 0.5
+    #
+    #             # 직군 점수
+    #             job_role = job.get('직군', '').lower()
+    #             job_jobs = [d.lower() for d in job.get('직무', [])]
+    #             role_score = 1.0 if any(
+    #                 k in job_role or any(k in jj for jj in job_jobs)
+    #                 for k in AgentTools.RESUME_JOB_ROLE_KEYWORDS
+    #             ) else 0.0
+    #
+    #             # 최종 점수
+    #             total = (
+    #                     cosine_score * AgentTools.WEIGHT_COSINE_SIMILARITY +
+    #                     exp_score * AgentTools.WEIGHT_EXPERIENCE_MATCH +
+    #                     tech_score * AgentTools.WEIGHT_TECH_STACK_MATCH +
+    #                     role_score * AgentTools.WEIGHT_JOB_ROLE_MATCH
+    #             )
+    #             scores.append((
+    #                 total, job_id, job.get('제목', ''),
+    #                 cosine_score, exp_score, tech_score, role_score
+    #             ))
+    #
+    #         top5 = sorted(scores, key=lambda x: x[0], reverse=True)[:5]
+    #         if not top5:
+    #             return "채용 공고가 없습니다."
+    #
+    #         lines = [
+    #             "|순위|공고 ID|제목|유사도|경력점수|기술점수|직무점수|총점|",
+    #             "|---|---|---|---|---|---|---|---|"
+    #         ]
+    #         for rank, (total, jid, title, cosine_score, exp_score, tech_score, role_score) in enumerate(top5, start=1):
+    #             lines.append(
+    #                 f"|{rank}|{jid}|{title}|"
+    #                 f"{cosine_score:.4f}|{exp_score:.2f}|{tech_score:.2f}|{role_score:.2f}|{total:.4f}|"
+    #             )
+    #         return "\n".join(lines)
+    #
+    #     return Tool.from_function(
+    #         func=_find_best_job_match,
+    #         name="find_best_job_match",
+    #         description="""
+    #                 사용자 이력서를 받아 가장 적합한 공고 상위 5개를 표 형태로 반환합니다.
+    #                 사용법: 사용자로부터 받은 이력서 JSON 데이터를 resume 파라미터에 전달하세요.
+    #                 예: find_best_job_match(resume={"education_level": "대졸", "skills": "Python, Django", ...})
+    #                 """,
+    #     )
+
     @staticmethod
     def _create_job_match_tool() -> Tool:
         """
