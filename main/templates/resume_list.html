@@ -23,24 +23,29 @@
 
     <style>
       :root {
-        --primary-color: #000080;
-        --primary-light: #e6e6ff;
+        --bg-gradient-1: #eef4fb;
+        --bg-gradient-2: #e2eafc;
+
+        --primary-color: #3b82f6;
+        /* ✅ [UPDATE] 안내창 배경색을 더 잘 보이도록 살짝 진하게 변경 */
+        --primary-light: #dbeafe; 
+        /* ✅ [ADD] 안내창 테두리에 사용할 색상 변수 추가 */
+        --primary-border: rgba(59, 130, 246, 0.3);
+
         --text-primary: #1a2b48;
         --text-secondary: #6c757d;
         --border-color: #dee2e6;
-        --background-color: #f4f4f8;
         --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.04),
           0 1px 3px rgba(0, 0, 0, 0.08);
-        --card-hover-shadow: 0 10px 15px rgba(0, 0, 128, 0.1),
-          0 4px 6px rgba(0, 0, 128, 0.1);
+
+        --card-hover-shadow: 0 10px 15px rgba(59, 130, 246, 0.1),
+          0 4px 6px rgba(59, 130, 246, 0.1);
         
-        /* ▼▼▼▼▼ 색감 복원: 수정/삭제 아이콘 색상 변수 정의 ▼▼▼▼▼ */
-        --edit-color: #3366ff; /* 수정 아이콘에 사용할 생생한 파란색 */
-        --delete-color: #e63946; /* 삭제 아이콘에 사용할 명확한 붉은색 */
-        /* ▲▲▲▲▲ 여기까지 추가 ▲▲▲▲▲ */
+        --edit-color: #3366ff;
+        --delete-color: #e63946;
       }
       body {
-        background-color: var(--background-color);
+        background: linear-gradient(to top, var(--bg-gradient-2), var(--bg-gradient-1));
         font-family: "Pretendard", sans-serif;
         color: var(--text-primary);
         padding-left: 80px;
@@ -83,9 +88,12 @@
         transform: translate(-50%, -70%);
       }
 
+      /* ✅ [UPDATE] 안내창에 테두리와 그림자 효과 추가 */
       .page-prompt {
         background-color: var(--primary-light);
         color: var(--primary-color);
+        border: 1px solid var(--primary-border);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         border-radius: 12px;
         padding: 20px 30px;
         font-size: 1.2rem;
@@ -198,13 +206,12 @@
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
       
-      /* ▼▼▼▼▼ 색감 복원: 수정/삭제 버튼 호버 효과 강화 ▼▼▼▼▼ */
       .btn-action.edit:hover {
-        background-color: #e7f5ff; /* 연한 파란색 배경 */
+        background-color: #e7f5ff;
         color: var(--edit-color);
       }
       .btn-action.delete:hover {
-        background-color: #fff5f5; /* 연한 붉은색 배경 */
+        background-color: #fff5f5;
         color: var(--delete-color);
       }
       .btn-action .fas {
@@ -222,7 +229,6 @@
         30%, 50%, 70% { transform: translate3d(-2px, 0, 0); }
         40%, 60% { transform: translate3d(2px, 0, 0); }
       }
-      /* ▲▲▲▲▲ 여기까지 수정 ▲▲▲▲▲ */
 
       .selection-mode .resume-card {
         cursor: pointer;
@@ -289,8 +295,8 @@
         border-radius: 16px;
         border: none;
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        background-color: #a9a9d4;
-        color: #eef2ff;
+        background-color: #d1d5db;
+        color: #6b7280;
         cursor: not-allowed;
         transition: all 0.3s;
       }
@@ -301,8 +307,8 @@
       }
       #generate-report-btn:not(:disabled):hover {
         transform: translateY(-3px);
-        box-shadow: 0 12px 25px rgba(0, 0, 128, 0.25);
-        filter: brightness(120%);
+        box-shadow: 0 12px 25px rgba(59, 130, 246, 0.25);
+        filter: brightness(110%);
       }
     </style>
   </head>

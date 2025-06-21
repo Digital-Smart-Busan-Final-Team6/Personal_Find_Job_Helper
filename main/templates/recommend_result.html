@@ -24,22 +24,27 @@
     />
 
     <style>
-      /* [디자인 시스템 - 다른 페이지와 통일] */
+      /* ✅ [UPDATE] 디자인 시스템 전체를 새로운 파란색 테마로 통일 */
       :root {
-        --primary-color: #000080; /* 네이비 */
-        --primary-light: #e6e6ff;
+        --bg-gradient-1: #eef4fb;
+        --bg-gradient-2: #e2eafc;
+
+        --primary-color: #3b82f6;
+        --primary-light: #dbeafe;
+        --primary-border: rgba(59, 130, 246, 0.3);
+
         --text-primary: #1a2b48;
         --text-secondary: #6c757d;
         --border-color: #dee2e6;
-        --background-color: #f4f4f8;
-        --progress-bar-bg: #e0e7ff;
-        --selected-glow: rgba(0, 0, 128, 0.2);
         --gold-color: #ffc107;
+
+        --progress-bar-bg: #e0e7ff;
+        --selected-glow: rgba(59, 130, 246, 0.2);
         --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        --card-hover-shadow: 0 10px 25px rgba(0, 0, 128, 0.15);
+        --card-hover-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
       }
 
-      /* [애니메이션] */
+      /* [애니메이션] - 변경 없음 */
       @keyframes fadeInUp {
         from {
           opacity: 0;
@@ -70,9 +75,9 @@
         }
       }
 
-      /* [기본 레이아웃] */
+      /* ✅ [UPDATE] 기본 레이아웃 배경색 통일 */
       body {
-        background-color: var(--background-color);
+        background: linear-gradient(to top, var(--bg-gradient-2), var(--bg-gradient-1));
         font-family: "Pretendard", sans-serif;
         color: var(--text-primary);
         padding-bottom: 150px;
@@ -88,7 +93,7 @@
         margin: 0 auto;
       }
 
-      /* [페이지 헤더 및 안내문] */
+      /* [페이지 헤더] - 변경 없음 */
       .page-header {
         text-align: center;
         margin-bottom: 20px;
@@ -102,12 +107,15 @@
       .page-header .page-subtitle {
         color: var(--text-secondary);
       }
+      /* ✅ [UPDATE] 안내문 스타일 업데이트 */
       .instruction-text {
         text-align: center;
         font-size: 1.1rem;
         font-weight: 500;
         color: var(--primary-color);
         background-color: var(--primary-light);
+        border: 1px solid var(--primary-border);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         padding: 15px;
         border-radius: 12px;
         margin-bottom: 40px;
@@ -118,7 +126,7 @@
         margin-right: 8px;
       }
 
-      /* [추천 공고 카드 - 동적 & 시각적] */
+      /* ✅ [UPDATE] 추천 공고 카드 스타일 (변수 변경으로 자동 적용) */
       .job-card {
         display: flex;
         align-items: center;
@@ -149,7 +157,7 @@
         border-color: var(--primary-color);
       }
 
-      /* 카드 왼쪽: 순위 & 적합도 */
+      /* [카드 왼쪽: 순위 & 적합도] - 변경 없음 */
       .job-card-rank-score {
         flex-shrink: 0;
         text-align: center;
@@ -168,7 +176,7 @@
         font-size: 1.4rem;
       }
 
-      /* 원형 프로그레스 바 */
+      /* ✅ [UPDATE] 원형 프로그레스 바 스타일 (변수 변경으로 자동 적용) */
       .progress-circle {
         position: relative;
         width: 100px;
@@ -202,7 +210,7 @@
         color: var(--primary-color);
       }
 
-      /* 카드 오른쪽: 공고 정보 */
+      /* [카드 오른쪽: 공고 정보] - 변경 없음 */
       .job-card-details {
         flex-grow: 1;
       }
@@ -231,6 +239,7 @@
         align-items: center;
         gap: 6px;
       }
+      /* ✅ [UPDATE] 기술 스택 태그 스타일 (변수 변경으로 자동 적용) */
       .tech-stack {
         display: flex;
         flex-wrap: wrap;
@@ -245,7 +254,7 @@
         border-radius: 20px;
       }
 
-      /* [하단 '리포트 생성' 고정 버튼] */
+      /* ✅ [UPDATE] 하단 '리포트 생성' 고정 버튼 스타일 */
       .report-fab-container {
         position: fixed;
         bottom: 40px;
@@ -263,7 +272,7 @@
         padding: 15px 35px;
         border-radius: 30px;
         border: none;
-        box-shadow: 0 8px 20px rgba(0, 0, 128, 0.3);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
         cursor: pointer;
         transition: all 0.3s ease-in-out;
         opacity: 0;
@@ -279,7 +288,8 @@
       }
       .generate-btn:hover {
         transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(0, 0, 128, 0.4);
+        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+        filter: brightness(110%);
       }
       .generate-btn .fa-wand-magic-sparkles {
         margin-right: 10px;
@@ -315,12 +325,6 @@
           <div
             class="job-card"
             data-job-id="{{ job.job_id }}"
-            {#
-            ★★★
-            수정된
-            부분
-            ★★★
-            #}
             style="--animation-order: {{ forloop.counter0 }};"
           >
             <!-- 왼쪽: 순위 & 적합도 -->
@@ -376,12 +380,6 @@
               class="job-checkbox"
               name="selected_jobs"
               value="{{ job.job_id }}"
-              {#
-              ★★★
-              수정된
-              부분
-              ★★★
-              #}
               style="display: none"
             />
           </div>
@@ -402,6 +400,7 @@
     </div>
 
     <script>
+        // 스크립트 부분은 변경 없이 그대로 작동합니다.
       document.addEventListener("DOMContentLoaded", function () {
         const jobCards = document.querySelectorAll(".job-card");
         const submitButton = document.getElementById("generate-report-btn");
