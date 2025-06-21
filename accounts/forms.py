@@ -1,10 +1,9 @@
 from django import forms
-from .models import Resume # 실제 Resume 모델이 있는 앱 이름으로 수정
+from .models import Resume
 
 class ResumeForm(forms.ModelForm):
     class Meta:
         model = Resume
-        # 1. models.py와 동일하게 필드 목록을 수정합니다.
         fields = [
             'title', 
             'education_level', 'university', 'major', 'gpa', 
@@ -13,7 +12,6 @@ class ResumeForm(forms.ModelForm):
             'experience', 'certifications'
         ]
         
-        # 2. 위젯 설정도 새로운 필드에 맞게 수정합니다.
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 백엔드 개발자 이력서'}),
             
@@ -23,7 +21,7 @@ class ResumeForm(forms.ModelForm):
             'major': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 컴퓨터공학과'}),
             'gpa': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '예: 4.2'}),
             
-            # --- 경력(년) 위젯 추가 ---
+            # --- 경력(년) 위젯 ---
             'experience_years': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '숫자만 입력'}),
             
             # --- 나머지 위젯 ---

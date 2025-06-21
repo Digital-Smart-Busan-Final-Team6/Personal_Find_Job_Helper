@@ -5,23 +5,21 @@
     <meta charset="UTF-8">
     <title>{% if is_edit_mode %}이력서 수정{% else %}새 이력서 작성{% endif %}</title>
 
-    <!-- 1. 기본 라이브러리 -->
+    <!-- 기본 라이브러리 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- 2. Tagify 라이브러리 -->
+    <!-- Tagify 라이브러리 -->
     <link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
     <script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
 
-    <!-- 3. 구글 폰트 -->
+    <!-- 구글 폰트 -->
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- 기본 설정 & 변수 --- */
         :root {
             --primary-color: #4a69bd;
-            /* 차분한 네이비 */
             --primary-light: #e9f0ff;
             --secondary-color: #7a7a7a;
             --background-color: #f7f9fc;
@@ -31,7 +29,6 @@
             --font-family: 'Pretendard', sans-serif;
         }
 
-        /* --- 전체 레이아웃 --- */
         body {
             background-color: var(--background-color);
             color: #333;
@@ -51,11 +48,8 @@
 
         .sidebar {
             width: 260px;
-            /* 사이드바의 너비를 고정값으로 설정 */
             flex-shrink: 0;
-            /* 컨텐츠가 많아져도 너비가 줄어들지 않도록 함 */
             background-color: #f8f9fc;
-            /* 배경색을 살짝 변경하여 구분감 부여 */
             padding: 30px;
             border-right: 1px solid var(--border-color);
         }
@@ -65,7 +59,6 @@
             padding: 40px 50px;
         }
 
-        /* --- 헤더 --- */
         .form-header {
             text-align: center;
             margin-bottom: 40px;
@@ -76,12 +69,10 @@
             font-weight: 700;
             color: var(--primary-color);
             margin-bottom: 25px;
-            /* 제목과 입력창 사이 여백 추가 */
         }
 
         #id_title {
             border: 2px solid #e0e6f5;
-            /* 테두리를 명확하게 표시 */
             border-radius: 12px;
             padding: 15px 20px;
             text-align: center;
@@ -96,23 +87,17 @@
             box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.2) !important;
         }
 
-        /* --- 사이드바 (탭 메뉴) --- */
+        /* --- 사이드바  --- */
         .nav-pills .nav-link {
-            color: #495057;
-            /* 기본 글자색을 약간 어둡게 */
             font-weight: 600;
             text-align: left;
             padding: 13px 20px;
-            /* 패딩 조정 */
             margin-bottom: 8px;
             border-radius: 12px;
             transition: all 0.2s ease-in-out;
             white-space: nowrap;
-            /* 텍스트가 길어져도 줄바꿈되지 않도록 함 */
             overflow: hidden;
-            /* 넘치는 텍스트는 숨김 */
             text-overflow: ellipsis;
-            /* 넘치는 텍스트는 ...으로 표시 */
         }
 
         .nav-pills .nav-link:hover {
@@ -122,14 +107,11 @@
 
         .nav-pills .nav-link.active {
             background: linear-gradient(90deg, var(--primary-color), #6a8df0);
-            /* 그라데이션 적용 */
             color: white;
             box-shadow: 0 5px 15px var(--shadow-color);
             transform: scale(1.02);
-            /* 살짝 커지는 효과 */
         }
 
-        /* --- 콘텐츠 영역 --- */
         .tab-content h4 {
             font-weight: 700;
             color: var(--primary-color);
@@ -180,7 +162,6 @@
 
         /* --- 희망 직무/근무지 선택 UI --- */
         .job-categories {
-            /* 이 부분은 이제 ul/li가 아니라 div > button 형태로 변경됩니다. */
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
@@ -190,13 +171,11 @@
         }
 
         .job-category-btn {
-            /* 새로운 클래스 */
             background-color: #fff;
             border: 1px solid var(--border-color);
             color: var(--text-light, #6c757d);
             padding: 10px 18px;
             border-radius: 50px;
-            /* 알약 모양 */
             font-weight: 600;
             cursor: pointer;
             transition: all 0.25s ease;
@@ -230,13 +209,10 @@
             display: inline-flex;
             align-items: center;
             padding: 8px 15px;
-            /* 패딩 조정 */
             gap: 8px;
             border-radius: 20px;
-            /* 더 둥글게 */
             background-color: #f1f4ff;
             border: 1px solid transparent;
-            /* 기본 테두리는 투명하게 */
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
@@ -245,13 +221,10 @@
 
         .subcategory-group input[type="checkbox"] {
             display: none;
-            /* 체크박스는 숨김 */
         }
 
         /* 체크되었을 때의 스타일 */
         .subcategory-group input[type="checkbox"]:checked+span {
-            /* 이 스타일을 적용하려면 HTML에서 텍스트를 span으로 감싸야 합니다. */
-            /* 아래 HTML 수정 부분을 참고하세요. */
         }
 
         /* 체크된 항목의 부모 label에 스타일 적용 */
@@ -691,7 +664,7 @@
     </div>
 </form>
 
-<!-- ▼▼▼ 모든 JavaScript 코드는 여기에 단 한 번만 작성합니다. ▼▼▼ -->
+<!-- JavaScript -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
 
@@ -719,8 +692,7 @@
             });
         });
 
-        // --- 2. 보유 기술(Tagify) 초기화 로직 (핵심!) ---
-        // Tagify를 초기화하는 함수를 정의합니다.
+        // --- 보유 기술(Tagify) 초기화 로직 ---
         function initializeTagify() {
             const input = document.querySelector('#id_skills');
             if (!input) {
@@ -782,16 +754,16 @@
         // 페이지가 로드되면 즉시 Tagify를 초기화합니다.
         initializeTagify();
 
-        // --- 3. 폼 제출 시 제목 유효성 검사 로직 ---
+        // --- 폼 제출 시 제목 유효성 검사 로직 ---
         const mainForm = document.querySelector('form');
         const titleInput = document.getElementById('id_title');
         if (mainForm && titleInput) {
             mainForm.addEventListener('submit', function (event) {
                 if (titleInput.value.trim() === '') {
-                    event.preventDefault(); // 폼 제출을 막습니다.
+                    event.preventDefault(); 
                     alert('이력서 제목을 입력해주세요.');
                     titleInput.focus();
-                    titleInput.classList.add('is-invalid'); // 부트스트랩의 유효성 검사 스타일 적용
+                    titleInput.classList.add('is-invalid'); 
                 }
             });
             // 사용자가 다시 입력을 시작하면 에러 스타일을 제거합니다.

@@ -1,6 +1,4 @@
-# main/views.py
-
-import time  # Agent 호출 시뮬레이션을 위한 time 모듈
+import time
 import json
 import re
 from django.shortcuts import render, redirect, get_object_or_404
@@ -8,7 +6,7 @@ from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from pathlib import Path                # ← 이 줄을 추가해주세요
+from pathlib import Path
 
 from accounts.models import Resume
 from accounts.forms import ResumeForm
@@ -16,7 +14,7 @@ from accounts.forms import ResumeForm
 # Agent 관련 import
 from Run_Pipeline.Agent_Manager import get_agent_chain
 from langchain_teddynote.messages import AgentStreamParser, AgentCallbacks
-from .utils import parse_markdown_table_to_json  # utils에서 함수 호출
+from .utils import parse_markdown_table_to_json
 from django.forms.models import model_to_dict
 
 
@@ -29,7 +27,7 @@ def home(request):
     return render(request, "home.html", context)
 
 
-# --- [View 2] 이력서 '목록'을 보여주는 페이지 (Read) ---
+# --- [View 2] 이력서 목록을 보여주는 페이지 (Read) ---
 def resume_list_view(request):
     resumes = Resume.objects.all().order_by("-updated_at")
     context = {
@@ -43,17 +41,14 @@ def resume_list_view(request):
 # 스킬 목록 읽어오는 페이지
 def load_skills_whitelist():
     """JSON 파일에서 스킬 목록을 읽어오는 도우미 함수"""
-    # 파일 경로만 새로운 JSON 파일로 변경될 수 있습니다.
     file_path = settings.BASE_DIR / "Data_Files" / "skills_dataset.json"
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        # 파일이 없을 경우를 대비한 예외 처리
         print(f"경고: 스킬 데이터 파일({file_path})을 찾을 수 없습니다.")
-        return "{}"  # 빈 JSON 객체 반환
+        return "{}"
     except Exception as e:
-        # 그 외 다른 오류 발생 시
         print(f"오류: 스킬 데이터 파일 처리 중 문제 발생 - {e}")
         return "{}"
 
@@ -84,7 +79,7 @@ def resume_add_view(request):
     return render(request, "resume_form.html", context)
 
 
-# --- [View 4] 특정 이력서를 '수정'하는 페이지 (Update) ---
+# --- [View 4] 특정 이력서를 수정하는 페이지 (Update) ---
 def resume_edit_view(request, resume_id):
     resume = get_object_or_404(Resume, id=resume_id)
     if request.method == "POST":
@@ -112,7 +107,7 @@ def resume_edit_view(request, resume_id):
     return render(request, "resume_form.html", context)
 
 
-# --- [View 5] 특정 이력서를 '삭제'하는 기능 (Delete) ---
+# --- [View 5] 특정 이력서를 삭제하는 기능 (Delete) ---
 def resume_delete_view(request, resume_id):
     resume = get_object_or_404(Resume, id=resume_id)
     if request.method == "POST":
@@ -148,7 +143,6 @@ def export_resumes_to_json(request):
 
 # --- [View 7] 공고 검색 리포트 페이지 ---
 def job_search_report_page(request):
-    # --- 기본 정보 로드 ---
     resume_ids_str = request.GET.get("resumes", "")
     if not resume_ids_str:
         return redirect("resume_list")
@@ -156,7 +150,7 @@ def job_search_report_page(request):
     resume_ids = resume_ids_str.split(",")
     selected_resumes = Resume.objects.filter(id__in=resume_ids)
 
-    # --- 검색어 처리 및 Agent 호출 준비 ---
+    # ---  Agent 호출 준비 ---
     search_query = request.GET.get("query", "").strip()
 
     agent_response = None
@@ -204,9 +198,7 @@ def job_search_report_page(request):
             agent_response = json.loads(json_part)
 
         except Exception as e:
-            # 예외 발생 시 사용자에게 보여줄 메시지를 설정합니다.
             print(f"Agent 공고 검색 중 오류 발생: {e}")
-            # 오류 발생 시, 템플릿에서 에러 처리를 할 수 있도록 analysis_text에 메시지 전달
             agent_response = {
                 "analysis_text": "AI 에이전트와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
                 "job_list": [],
@@ -249,31 +241,23 @@ def chat_api(request):
 
         agent = get_agent_chain(mode = "chat")
 
-        # 스트리밍 응답을 위한 제너레이터 함수를 정의합니다.
         def stream_response_generator():
-            # 이 리스트는 콜백 함수가 토큰을 담아두는 임시 저장소 역할을 합니다.
             tokens_to_yield = []
 
-            # 콜백 함수 정의: Agent가 생성하는 최종 답변(result)을 리스트에 추가합니다.
             def result_callback(result: str):
                 tokens_to_yield.append(result)
 
-            # AgentStreamParser를 팀원분의 의도대로 콜백과 함께 생성합니다.
             parser = AgentStreamParser(
                 callbacks=AgentCallbacks(result_callback=result_callback)
             )
 
-            # Agent의 stream 메서드를 호출합니다.
             result_stream = agent.stream(
                 {"input": message}, config={"configurable": {"session_id": session_id}}
             )
 
-            # 스트림에서 나오는 각 '조각(chunk)'을 처리합니다.
             for chunk in result_stream:
-                # 파서의 process_agent_steps가 내부적으로 콜백을 호출합니다.
                 parser.process_agent_steps(chunk)
 
-                # 콜백 함수가 리스트에 담아둔 토큰이 있다면, 즉시 yield로 보냅니다.
                 while tokens_to_yield:
                     token = tokens_to_yield.pop(0)
                     yield f"data: {json.dumps({'token': token})}\n\n"
@@ -296,20 +280,17 @@ def chat_api(request):
 
 # --- [View 9] 추천 로딩 페이지 뷰 ---
 def recommend_recommending_view(request):
-    # --- 기본 정보 로드 ---
     resume_ids_str = request.GET.get("resumes", "")
     if not resume_ids_str:
         return redirect("resume_list")
 
     resume_ids = resume_ids_str.split(",")
 
-    # 모든 선택된 이력서 로드 (기존에는 first()만 사용)
     resume_objects = Resume.objects.filter(id__in=resume_ids)
     if not resume_objects.exists():
         request.session["recommended_jobs"] = []
         return redirect("recommend_result")
 
-    # 각 이력서를 dict로 변환
     resume_data_list = []
     for resume_obj in resume_objects:
         resume_dict = model_to_dict(
@@ -320,7 +301,6 @@ def recommend_recommending_view(request):
                 "skills", "experience", "certifications"
             ]
         )
-        # 이력서 제목도 포함 (표시용)
         resume_dict['title'] = resume_obj.title
         resume_data_list.append(resume_dict)
 
@@ -366,7 +346,7 @@ def recommend_recommending_view(request):
     # 세션 저장, 리디렉션
     request.session["recommended_jobs"] = recommended_jobs
     request.session["selected_resume_ids"] = resume_ids
-    request.session["selected_resumes_data"] = resume_data_list  # 추가: 이력서 데이터도 저장
+    request.session["selected_resumes_data"] = resume_data_list
 
     return redirect("recommend_result")
 
@@ -379,14 +359,12 @@ def recommend_result_view(request):
         messages.warning(request, "추천된 공고가 없습니다. 다시 시도해주세요.")
         return redirect("resume_list")
 
-    # --- 2. 상세 정보 조회를 위해 원본 공고 데이터 파일 로드 ---
     job_data_source = {}
     try:
         job_file_path = settings.BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
         with open(job_file_path, 'r', encoding='utf-8') as f:
             all_jobs_data = json.load(f)
         
-        # 중첩된 JSON 구조 처리
         if 'postings' in all_jobs_data and isinstance(all_jobs_data['postings'], dict):
             job_data_source = all_jobs_data['postings']
         else:
@@ -396,7 +374,6 @@ def recommend_result_view(request):
         print(f"오류: 공고 데이터 파일({job_file_path})을 로드할 수 없습니다. - {e}")
         messages.error(request, "공고 정보를 불러오는 데 실패했습니다.")
 
-    # --- 3. 추천 공고 목록에 상세 정보 보강 ---
     enriched_recommended_jobs = []
     for job in recommended_jobs_from_session:
         job_id_from_parser = job.get("공고_ID") 
@@ -405,9 +382,8 @@ def recommend_result_view(request):
             continue
 
         enriched_job = job.copy()
-        enriched_job['job_id'] = job_id_from_parser # 템플릿용 키 통일
+        enriched_job['job_id'] = job_id_from_parser
         
-        # job_data_source에서 공고 ID로 상세 정보 조회
         job_details = job_data_source.get(str(job_id_from_parser))
 
         if job_details:
@@ -444,7 +420,7 @@ def generate_final_report_view(request):
     if request.method != "POST":
         return redirect("resume_list")
 
-    # 1) 입력 파라미터 검증
+    # 입력 파라미터 검증
     resume_ids_str   = request.POST.get("resume_ids", "")
     selected_job_ids = request.POST.getlist("selected_jobs")
     if not resume_ids_str or not selected_job_ids:
@@ -454,7 +430,7 @@ def generate_final_report_view(request):
     main_resume_id = resume_ids_str.split(",")[0]
     selected_job_id_str = selected_job_ids[0]
 
-    # 2) Resume 객체 로드 및 dict 변환
+    # Resume 객체 로드 및 dict 변환
     try:
         resume_obj = Resume.objects.get(id=main_resume_id)
     except Resume.DoesNotExist:
@@ -470,7 +446,7 @@ def generate_final_report_view(request):
         ],
     )
 
-    # 3) 공고 상세 정보 로드
+    # 공고 상세 정보 로드
     job_detail = None
     try:
         job_file_path = settings.BASE_DIR / "Data_Files" / "wanted_detail_improve_20250616.json"
@@ -481,7 +457,7 @@ def generate_final_report_view(request):
     except Exception as e:
         print(f"공고 정보 조회 중 오류 발생: {e}")
 
-    # 4) Agent 호출 및 리포트 생성
+    # Agent 호출 및 리포트 생성
     agent = get_agent_chain(mode="job")
     if not request.session.session_key:
         request.session.create()
@@ -508,15 +484,14 @@ def generate_final_report_view(request):
     except Exception as e:
         report_markdown = f"### 리포트 생성 오류\n{e}"
 
-    # `**Answer:**` 또는 `Answer:` 형태를 모두 제거하도록 정규표현식 수정
+    # **Answer:** 또는 Answer: 형태를 모두 제거하도록 정규표현식 수정
     clean_report = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", report_markdown, flags=re.IGNORECASE).strip()
     
     #  맨 앞에 남은 '**' 후처리
     if clean_report.startswith("**"):
         clean_report = clean_report[2:].strip()
 
-    # 5. 리포트에서 매칭 키워드 추출하기
-    # (이하 코드는 clean_report를 사용하므로 동일)
+    # 리포트에서 매칭 키워드 추출하기
     matching_keywords = []
     try:
         skills_in_resume = []
@@ -542,7 +517,7 @@ def generate_final_report_view(request):
         print(f"키워드 추출 중 오류 발생: {e}")
         matching_keywords = []
 
-    # 6. 템플릿에 전달할 최종 데이터
+    # 템플릿에 전달할 최종 데이터
     context = {
         "selected_resume": resume_obj,
         "matching_keywords": matching_keywords,

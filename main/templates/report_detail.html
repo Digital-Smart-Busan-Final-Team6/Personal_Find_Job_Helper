@@ -4,7 +4,6 @@
   <head>
     <meta charset="UTF-8" />
     <title>AI 매칭 분석 리포트</title>
-    <!-- 1. 기본 라이브러리 -->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -22,14 +21,12 @@
       rel="stylesheet"
     />
 
-    <!-- 2. 추가 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
-      /* ✅ [UPDATE] 디자인 시스템 전체를 새로운 파란색 테마로 통일 */
       :root {
         --bg-gradient-1: #eef4fb;
         --bg-gradient-2: #e2eafc;
@@ -43,7 +40,6 @@
         --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
       }
 
-      /* ✅ [UPDATE] body 배경 통일 */
       body {
         background: linear-gradient(to top, var(--bg-gradient-2), var(--bg-gradient-1));
         font-family: "Pretendard", sans-serif;
@@ -67,7 +63,6 @@
         text-align: center;
       }
 
-      /* ✅ [UPDATE] 상단 요약 섹션 스타일 (변수 변경으로 자동 적용) */
       .summary-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -121,7 +116,6 @@
         transform: translateY(0);
       }
 
-      /* ✅ [UPDATE] 리포트 헤더 스타일 */
       .report-header {
         padding: 20px 30px;
         background: var(--primary-color);
@@ -150,7 +144,7 @@
         color: var(--primary-color);
       }
 
-      /* ✅ [UPDATE] Markdown 렌더링 결과 스타일 */
+      /*  Markdown 렌더링 결과 스타일 */
       .report-output {
         padding: 40px;
         line-height: 1.9;
@@ -218,7 +212,7 @@
         color: var(--text-secondary);
         margin-left: 0;
       }
-      /* ✅ [UPDATE] 키워드 태그 스타일 */
+      /* 키워드 태그 스타일 */
       .keyword-tags {
         display: flex;
         flex-wrap: wrap;
@@ -295,7 +289,6 @@
     </div>
 
     <script>
-        // 스크립트 부분은 변경 없이 그대로 작동합니다.
       document.addEventListener("DOMContentLoaded", function () {
         AOS.init({
           duration: 800,

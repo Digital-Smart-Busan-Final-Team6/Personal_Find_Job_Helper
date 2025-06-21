@@ -1,14 +1,13 @@
 {% comment %} main/templates/_sidebar.html {% endcomment %}
 
 <style>
-  /* ✅ [UPDATE] 사이드바 전체 스타일을 밝은 테마로 통일 */
   :root {
     --sidebar-bg: #ffffff;
     --sidebar-text-color: #555555;
-    --sidebar-primary-color: #3b82f6; /* 메인 화면의 포인트 푸른색 */
+    --sidebar-primary-color: #3b82f6; 
     --sidebar-hover-bg: #f0f4f8;
     --sidebar-active-bg: #eaf2ff;
-    --sidebar-border-color: #e5e7eb; /* 연한 회색 테두리 */
+    --sidebar-border-color: #e5e7eb;
   }
 
   /* 1. 사이드바 기본 틀 */
@@ -18,8 +17,8 @@
     top: 0;
     height: 100%;
     width: 80px;
-    background-color: var(--sidebar-bg); /* ✅ 통합 배경색 적용 */
-    border-right: 1px solid var(--sidebar-border-color); /* ✅ 통합 테두리색 적용 */
+    background-color: var(--sidebar-bg); 
+    border-right: 1px solid var(--sidebar-border-color);
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04);
     padding: 20px 0;
     display: flex;
@@ -53,7 +52,7 @@
   /* 3. 헤더 안의 아이콘들 */
   .menu-toggle, .page-switch-icon {
     font-size: 1.5rem;
-    color: var(--sidebar-text-color); /* ✅ 통합 텍스트색 적용 */
+    color: var(--sidebar-text-color);
     cursor: pointer;
     text-decoration: none;
     transition: color 0.2s;
@@ -66,7 +65,7 @@
     display: inline-block;
   }
   .page-switch-icon:hover {
-    color: var(--sidebar-primary-color); /* ✅ 통합 포인트색 적용 */
+    color: var(--sidebar-primary-color);
   }
 
   /* 4. 메뉴 목록 */
@@ -80,15 +79,15 @@
     display: flex;
     align-items: center;
     padding: 15px 28px;
-    color: var(--sidebar-text-color); /* ✅ 통합 텍스트색 적용 */
+    color: var(--sidebar-text-color);
     text-decoration: none;
     white-space: nowrap;
     transition: background 0.2s, color 0.2s;
     gap: 20px;
   }
   .nav-item a:hover {
-    background: var(--sidebar-hover-bg); /* ✅ 통합 호버 배경색 적용 */
-    color: var(--sidebar-primary-color); /* ✅ 통합 포인트색 적용 */
+    background: var(--sidebar-hover-bg); 
+    color: var(--sidebar-primary-color);
   }
 
   /* ✅ Active 메뉴 스타일 업데이트 */
@@ -118,17 +117,12 @@
   /* 5. 메뉴 구분선 */
   .divider {
       height: 1px;
-      background-color: var(--sidebar-border-color); /* ✅ 통합 테두리색 적용 */
+      background-color: var(--sidebar-border-color);
       margin: 20px 20px;
   }
   .sidebar:hover .divider {
       margin: 20px 28px;
   }
-
-  /* ❌ [REMOVE] 페이지별로 사이드바 색을 바꾸던 스타일 제거 */
-  /* body.home-page .sidebar { ... } */
-  /* body.resume-page .sidebar { ... } */
-
   .page-switch-icon i {
     display: inline-block;
     transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
@@ -138,7 +132,6 @@
   }
 </style>
 
-<!-- HTML 구조는 기존과 동일하게 유지합니다 -->
 <nav class="sidebar">
   <div class="sidebar-header">
     <i class="fas fa-bars menu-toggle"></i>
