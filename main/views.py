@@ -239,9 +239,11 @@ def chat_api(request):
                 content_type="text/event-stream",
             )
 
-        agent = get_agent_chain(mode = "chat")
+        agent = get_agent_chain(mode="chat")
 
         def stream_response_generator():
+            is_first_chunk = True  # 첫 번째 데이터 조각인지 확인하는 플래그
+
             tokens_to_yield = []
 
             def result_callback(result: str):
@@ -260,7 +262,22 @@ def chat_api(request):
 
                 while tokens_to_yield:
                     token = tokens_to_yield.pop(0)
-                    yield f"data: {json.dumps({'token': token})}\n\n"
+
+                    if is_first_chunk:
+                        # 첫 번째 데이터 조각에서만 "Answer:" 패턴 제거를 시도합니다.
+                        # lstrip()을 사용하여 왼쪽 공백만 제거합니다.
+                        cleaned_token = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", token, flags=re.IGNORECASE).lstrip()
+                        
+                        # 만약 '**' 같은 마크다운이 접두사 제거 후 남았다면 그것도 제거합니다.
+                        if cleaned_token.startswith("**"):
+                             cleaned_token = cleaned_token[2:].lstrip()
+
+                        token = cleaned_token
+                        is_first_chunk = False  # 플래그를 비활성화하여 다음 조각부터는 이 로직을 실행하지 않도록 합니다.
+
+                    # "Answer:"만 포함된 토큰이 제거되어 비어있는 경우, 전송하지 않습니다.
+                    if token:
+                        yield f"data: {json.dumps({'token': token})}\n\n"
 
         response = StreamingHttpResponse(
             stream_response_generator(), content_type="text/event-stream"
@@ -415,7 +432,7 @@ def recommend_result_view(request):
 
     return render(request, "recommend_result.html", context)
 
-# --- [View 11] 최종 리포트 생성 페이지 뷰 ---
+# [View 11] 최종 리포트 생성 페이지 뷰 ---
 def generate_final_report_view(request):
     if request.method != "POST":
         return redirect("resume_list")
@@ -480,16 +497,19 @@ def generate_final_report_view(request):
             {"input": prompt},
             config={"configurable": {"session_id": session_id}},
         )
-        report_markdown = result.get("output", "").strip()
-    except Exception as e:
-        report_markdown = f"### 리포트 생성 오류\n{e}"
+        agent_output = result.get("output", "").strip()
 
-    # **Answer:** 또는 Answer: 형태를 모두 제거하도록 정규표현식 수정
-    clean_report = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", report_markdown, flags=re.IGNORECASE).strip()
-    
-    #  맨 앞에 남은 '**' 후처리
-    if clean_report.startswith("**"):
-        clean_report = clean_report[2:].strip()
+        # --- ✨ 여기가 핵심 수정 부분입니다! ✨ ---
+        # Agent가 생성한 "Answer:" 접두사를 제거합니다.
+        # 기존에 작성하신 코드를 그대로 활용하되, 변수명만 agent_output으로 맞춥니다.
+        clean_report = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", agent_output, flags=re.IGNORECASE).strip()
+        
+        # 맨 앞에 남을 수 있는 '**'도 한번 더 처리합니다.
+        if clean_report.startswith("**"):
+            clean_report = clean_report[2:].strip()
+
+    except Exception as e:
+        clean_report = f"### 리포트 생성 오류\n{e}" # 오류 발생 시 clean_report에 할당
 
     # 리포트에서 매칭 키워드 추출하기
     matching_keywords = []
@@ -521,7 +541,7 @@ def generate_final_report_view(request):
     context = {
         "selected_resume": resume_obj,
         "matching_keywords": matching_keywords,
-        "report_markdown": clean_report, 
+        "report_markdown": clean_report, # 정제된 텍스트를 전달합니다.
         "current_page": "resume",
         "switch_url_name": "home",
     }
