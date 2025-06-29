@@ -7,7 +7,7 @@ class EnvLoader:
     .env 파일 사용 여부에 따라 환경 변수를 로드합니다.
     """
     @staticmethod
-    def load_local(dotenv_path: str = "./.env"):
+    def load_local(dotenv_path: str = "../.env"):
         if os.path.exists(dotenv_path):
             load_dotenv(dotenv_path=dotenv_path)
             # 예시: 필요한 키들을 환경 변수로 설정
