@@ -58,3 +58,41 @@ class DocumentSplitter:
                 f.write("\n")
 
         return all_chunks
+
+    def split_simple(self, texts: List[str], cache_dir: str) -> List[str]:
+        cache_dir = Path(cache_dir)
+
+        cache_file = cache_dir / f"{self.chunk_size}_{self.overlap}_simple_chunk"
+
+        # 캐시 존재 시 로드
+        if cache_file.exists():
+            loaded: List[str] = []
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    record = json.loads(line)
+                    loaded.append(record["text"])
+            print(f"캐시에서 {len(loaded)}개의 텍스트 청크 로드 완료")
+            return loaded
+
+        # 캐시 없으면 분할 수행
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.overlap,
+            length_function=self._len_okt
+        )
+
+        all_chunks: List[str] = []
+        for text in tqdm(texts, desc="텍스트 분할 중", unit="text"):
+            chunks = splitter.split_text(text)
+            all_chunks.extend(chunks)
+
+        # 캐시에 저장
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            for text in all_chunks:
+                record = {
+                    "text": text
+                }
+                f.write(json.dumps(record, ensure_ascii=False))
+                f.write("\n")
+
+        return all_chunks
