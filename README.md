@@ -31,7 +31,7 @@
 | 🤖 **LLM Q\&A**  | GPT‑4o(OpenAI) 기반 LangChain Agent로 “해당 공고 합격 전략 알려줘” 등 자유 질의 응답    |
 | 📝 **이력서 CRUD**  | Django Admin & 전용 폼으로 이력서 등록·수정·삭제·내보내기(JSON)                      |
 | 📊 **리포트 뷰**     | 선택 이력서 × 검색어 조합에 대한 종합 분석 리포트(JSON + UI)                           |
-| 🕸 **데이터 파이프라인** | `Crawling/ → QA_set/ → Run_Pipeline/` 전처리 모듈로 주기적 데이터 수집 & 가공      |
+
 
 ---
 
