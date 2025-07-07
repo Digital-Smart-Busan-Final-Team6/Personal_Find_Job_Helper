@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from django.views.decorators.http import require_POST
 from pathlib import Path
 
 from accounts.models import Resume
@@ -30,10 +31,13 @@ def home(request):
 # --- [View 2] 이력서 목록을 보여주는 페이지 (Read) ---
 def resume_list_view(request):
     resumes = Resume.objects.all().order_by("-updated_at")
+    selected_resume_ids = request.session.get('selected_resume_ids', [])
     context = {
         "resumes": resumes,
         "current_page": "resume",
         "switch_url_name": "home",
+        # 템플릿의 자바스크립트에서 사용할 수 있도록 JSON 문자열 형태로 전달합니다.
+        "selected_resume_ids_json": json.dumps(selected_resume_ids)
     }
     return render(request, "resume_list.html", context)
 
@@ -220,30 +224,65 @@ def job_search_report_page(request):
 @csrf_exempt
 def chat_api(request):
     """
-    챗봇의 질문에 대한 응답을 실시간 스트리밍으로 처리하는 API입니다.
+    챗봇 질문에 실시간 스트리밍으로 응답하는 API이다.
+    세션에 저장된 이력서 정보를 Agent에게 전달한다.
     """
     if request.method != "POST":
-        return JsonResponse({"error": "POST 요청만 허용됩니다."}, status=405)
+        return JsonResponse({"error": "POST 요청만 허용된다."}, status=405)
 
     try:
         data = json.loads(request.body)
         message = data.get("message", "").strip()
 
+        # 세션 초기화
         if not request.session.session_key:
             request.session.create()
         session_id = request.session.session_key
 
+        # 빈 질문 체크
         if not message:
             return StreamingHttpResponse(
-                'data: {"error": "질문을 입력해주세요."}\n\n',
+                'data: {"error": "질문을 입력해라."}\n\n',
                 content_type="text/event-stream",
             )
+
+        # --- ✨ 핵심 수정 부분 ✨ ---
+        selected_resume_ids = request.session.get("selected_resume_ids", [])
+        final_input_message = ""
+
+        if selected_resume_ids:
+            resume_id = selected_resume_ids[0]  # 여러 개면 첫 번째만 사용
+            try:
+                resume_obj = Resume.objects.get(id=resume_id)
+                resume_data_for_tool = model_to_dict(resume_obj)
+                resume_json_str = json.dumps(
+                    resume_data_for_tool, ensure_ascii=False, indent=2
+                )
+
+                final_input_message = f"""
+[사용자 컨텍스트 정보]
+- 현재 사용자가 선택한 이력서 데이터가 아래와 같이 주어졌다.
+- '내 이력서', '제 이력서' 등 이력서 기반 요청이 오면 반드시 `RESUME_DATA`를 활용한다.
+- `find_best_job_match`, `write_job_report` 툴 사용 시 `resume` 파라미터에 이 데이터를 전달해야 한다.
+
+```json
+"RESUME_DATA": {resume_json_str}
+[사용자 실제 질문]
+{message}
+"""
+                print(f"✅ 세션 이력서(ID: {resume_id}) 정보를 포함하여 Agent에 전달한다.")
+            except Resume.DoesNotExist:
+                final_input_message = message
+                print(f"⚠️ 세션의 이력서 ID({resume_id})를 DB에서 찾을 수 없다.")
+        else:
+            final_input_message = message
+            print("ℹ️ 선택된 이력서가 없어, 사용자 질문만 Agent에 전달한다.")
+        # --- ✨ 수정 끝 ✨ ---
 
         agent = get_agent_chain(mode="chat")
 
         def stream_response_generator():
-            is_first_chunk = True  # 첫 번째 데이터 조각인지 확인하는 플래그
-
+            is_first_chunk = True
             tokens_to_yield = []
 
             def result_callback(result: str):
@@ -253,62 +292,78 @@ def chat_api(request):
                 callbacks=AgentCallbacks(result_callback=result_callback)
             )
 
+            # Agent 호출
             result_stream = agent.stream(
-                {"input": message}, config={"configurable": {"session_id": session_id}}
+                {"input": final_input_message},
+                config={"configurable": {"session_id": session_id}},
             )
 
             for chunk in result_stream:
                 parser.process_agent_steps(chunk)
-
                 while tokens_to_yield:
                     token = tokens_to_yield.pop(0)
 
+                    # 첫 토큰 처리
                     if is_first_chunk:
-                        # 첫 번째 데이터 조각에서만 "Answer:" 패턴 제거를 시도합니다.
-                        # lstrip()을 사용하여 왼쪽 공백만 제거합니다.
-                        cleaned_token = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", token, flags=re.IGNORECASE).lstrip()
-                        
-                        # 만약 '**' 같은 마크다운이 접두사 제거 후 남았다면 그것도 제거합니다.
+                        cleaned_token = re.sub(
+                            r"^\s*\**Answer\**\s*:?\s*", "", token, flags=re.IGNORECASE
+                        ).lstrip()
                         if cleaned_token.startswith("**"):
-                             cleaned_token = cleaned_token[2:].lstrip()
-
+                            cleaned_token = cleaned_token[2:].lstrip()
                         token = cleaned_token
-                        is_first_chunk = False  # 플래그를 비활성화하여 다음 조각부터는 이 로직을 실행하지 않도록 합니다.
+                        is_first_chunk = False
 
-                    # "Answer:"만 포함된 토큰이 제거되어 비어있는 경우, 전송하지 않습니다.
                     if token:
                         yield f"data: {json.dumps({'token': token})}\n\n"
 
         response = StreamingHttpResponse(
-            stream_response_generator(), content_type="text/event-stream"
+            stream_response_generator(),
+            content_type="text/event-stream",
         )
         response["X-Accel-Buffering"] = "no"
         return response
 
     except json.JSONDecodeError:
-        return JsonResponse({"error": "잘못된 JSON 형식입니다."}, status=400)
+        return JsonResponse({"error": "잘못된 JSON 형식이다."}, status=400)
     except Exception as e:
         print(f"챗봇 API 오류 발생: {e}")
-        error_message = json.dumps({"error": f"서버 오류가 발생했습니다: {str(e)}"})
+        error_message = json.dumps({"error": f"서버 오류가 발생했다: {str(e)}"})
         return StreamingHttpResponse(
-            f"data: {error_message}\n\n", content_type="text/event-stream", status=500
+            f"data: {error_message}\n\n",
+            content_type="text/event-stream",
+            status=500,
         )
 
 
 # --- [View 9] 추천 로딩 페이지 뷰 ---
+# request.session에서 데이터를 읽도록 수정
 def recommend_recommending_view(request):
-    resume_ids_str = request.GET.get("resumes", "")
-    if not resume_ids_str:
+    # 1. URL 파라미터 대신 세션에서 이력서 ID 목록을 가져옵니다.
+    resume_ids = request.session.get('selected_resume_ids', [])
+    
+    # 2. 세션에 이력서 정보가 없으면 목록 페이지로 돌려보냅니다.
+    if not resume_ids:
+        messages.warning(request, '추천을 위한 이력서가 선택되지 않았습니다.')
+        return redirect("resume_list") # resume_list_view의 URL name이 'resume_list'라고 가정
+
+    # resume_ids는 이미 정수형 ID의 리스트일 수 있으나, 안전을 위해 변환합니다.
+    try:
+        resume_ids = [int(id) for id in resume_ids]
+    except (ValueError, TypeError):
+        messages.error(request, '잘못된 이력서 정보입니다.')
         return redirect("resume_list")
 
-    resume_ids = resume_ids_str.split(",")
-
+    # --- 여기부터는 기존 로직과 거의 동일합니다 ---
     resume_objects = Resume.objects.filter(id__in=resume_ids)
     if not resume_objects.exists():
+        messages.warning(request, "선택된 이력서를 찾을 수 없습니다.")
         request.session["recommended_jobs"] = []
         return redirect("recommend_result")
 
     resume_data_list = []
+    # Agent에게 보낼 쿼리는 모든 이력서 정보를 종합하여 만들 수 있습니다.
+    # 여기서는 첫 번째 이력서를 기준으로 쿼리를 만드는 기존 로직을 유지합니다.
+    query = ""
     for resume_obj in resume_objects:
         resume_dict = model_to_dict(
             resume_obj,
@@ -320,49 +375,53 @@ def recommend_recommending_view(request):
         )
         resume_dict['title'] = resume_obj.title
         resume_data_list.append(resume_dict)
-
+    
+    # 대표 이력서(첫번째)를 기준으로 쿼리 생성
+    if resume_data_list:
+        representative_resume = resume_data_list[0]
         query = f"""
         사용자의 이력서 정보를 바탕으로 가장 적합한 공고를 추천해 주세요.
         
         ## 이력서 정보
-        {resume_dict}
+        {representative_resume}
         
         다음과 같이 find_best_job_match 도구를 호출해 주세요:
-        find_best_job_match(resume={resume_dict})
+        find_best_job_match(resume={representative_resume})
         
         중요: resume 파라미터에 위의 이력서 JSON 데이터를 정확히 전달해 주세요.
         """
 
-    # --- Agent 호출 및 결과 파싱 ---
+    # --- Agent 호출 및 결과 파싱 (기존과 동일) ---
     recommended_jobs = []
-    try:
-        agent = get_agent_chain(mode = "job")
+    if query:
+        try:
+            agent = get_agent_chain(mode="job")
 
-        if not request.session.session_key:
-            request.session.create()
-        session_id = request.session.session_key
+            if not request.session.session_key:
+                request.session.create()
+            session_id = request.session.session_key
 
-        print(f"Agent 호출 시작 ({len(resume_data_list)}개 이력서 처리)...")
-        print(f"쿼리 미리보기: {query[:200]}...")
+            print(f"Agent 호출 시작 ({len(resume_data_list)}개 이력서 기반)...")
+            print(f"쿼리 미리보기: {query[:200]}...")
 
-        result = agent.invoke(
-            {"input": query},
-            {"configurable": {"session_id": session_id}},
-        )
+            result = agent.invoke(
+                {"input": query},
+                {"configurable": {"session_id": session_id}},
+            )
 
-        agent_output = result.get("output", "")
-        print(f"Agent로부터 받은 결과: {agent_output[:500]}...")
+            agent_output = result.get("output", "")
+            print(f"Agent로부터 받은 결과: {agent_output[:500]}...")
 
-        recommended_jobs = parse_markdown_table_to_json(agent_output)
-        print(f"Agent 결과(Markdown) 파싱 성공! {len(recommended_jobs)}개 공고 추천됨")
+            recommended_jobs = parse_markdown_table_to_json(agent_output)
+            print(f"Agent 결과(Markdown) 파싱 성공! {len(recommended_jobs)}개 공고 추천됨")
 
-    except Exception as e:
-        print(f"Agent 호출 또는 결과 파싱 중 오류 발생: {e}")
-        recommended_jobs = []
+        except Exception as e:
+            print(f"Agent 호출 또는 결과 파싱 중 오류 발생: {e}")
+            recommended_jobs = []
 
-    # 세션 저장, 리디렉션
+    # 세션에 결과 저장, 리디렉션
     request.session["recommended_jobs"] = recommended_jobs
-    request.session["selected_resume_ids"] = resume_ids
+    # 'selected_resume_ids'는 이미 세션에 있으므로 다시 저장할 필요가 없습니다.
     request.session["selected_resumes_data"] = resume_data_list
 
     return redirect("recommend_result")
@@ -623,6 +682,34 @@ def generate_final_report_view(request):
     }
 
     return render(request, "report_detail.html", context)
+
+# [View 12] 선택된 이력서 ID 세션 저장 뷰 ---
+# 이 뷰는 오직 '세션에 이력서 ID를 저장하는' 역할만 합니다.
+@require_POST
+def set_selected_resumes(request):
+    try:
+        # 프론트엔드(자바스크립트)에서 보낸 JSON 데이터를 파싱합니다.
+        data = json.loads(request.body)
+        resume_ids = data.get('resume_ids', [])
+
+        # 유효성 검사: resume_ids가 리스트 형태인지 확인합니다.
+        if not isinstance(resume_ids, list):
+            return JsonResponse({'status': 'error', 'message': '잘못된 데이터 형식입니다.'}, status=400)
+        
+        # 세션에 선택된 이력서 ID 리스트를 저장합니다.
+        # 이 키('selected_resume_ids')를 다른 뷰에서도 동일하게 사용해야 합니다.
+        request.session['selected_resume_ids'] = resume_ids
+        
+        print(f"✅ 세션에 이력서 ID 저장 성공: {resume_ids}")
+
+        # 성공적으로 저장되었음을 프론트엔드에 알리는 JSON 응답을 보냅니다.
+        return JsonResponse({'status': 'ok', 'message': '세션에 저장되었습니다.'})
+
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '잘못된 JSON 요청입니다.'}, status=400)
+    except Exception as e:
+        print(f"🚨 세션 저장 중 오류 발생: {e}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
 

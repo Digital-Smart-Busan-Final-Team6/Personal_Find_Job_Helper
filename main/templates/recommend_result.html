@@ -1,4 +1,5 @@
-{% load static %} {% load math_filters %}
+{% load static %}
+{% load math_filters %}
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -26,50 +27,25 @@
       :root {
         --bg-gradient-1: #eef4fb;
         --bg-gradient-2: #e2eafc;
-
         --primary-color: #3b82f6;
         --primary-light: #dbeafe;
         --primary-border: rgba(59, 130, 246, 0.3);
-
         --text-primary: #1a2b48;
         --text-secondary: #6c757d;
         --border-color: #dee2e6;
         --gold-color: #ffc107;
-
         --progress-bar-bg: #e0e7ff;
         --selected-glow: rgba(59, 130, 246, 0.2);
         --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         --card-hover-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
       }
-
       @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(30px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes pulse-glow {
-        0% {
-          box-shadow: var(--card-shadow);
-        }
-        50% {
-          box-shadow: var(--card-hover-shadow);
-        }
-        100% {
-          box-shadow: var(--card-shadow);
-        }
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       @keyframes progress-bar-fill {
-        from {
-          stroke-dashoffset: 283;
-        }
-        to {
-          stroke-dashoffset: var(--progress-offset);
-        }
+        from { stroke-dashoffset: 283; }
+        to { stroke-dashoffset: var(--progress-offset); }
       }
 
       body {
@@ -80,231 +56,88 @@
         padding-left: 80px;
         transition: padding-left 0.3s ease-in-out;
       }
-      body:has(.sidebar:hover) {
-        padding-left: 240px;
-      }
-      .content-area {
-        max-width: 900px;
-        padding-top: 60px;
-        margin: 0 auto;
-      }
+      body:has(.sidebar:hover) { padding-left: 240px; }
 
-      .page-header {
-        text-align: center;
-        margin-bottom: 20px;
-        animation: fadeInUp 0.5s ease-out;
-      }
-      .page-header .page-title {
-        font-weight: 800;
-        color: var(--text-primary);
-        font-size: 2.2rem;
-      }
-      .page-header .page-subtitle {
-        color: var(--text-secondary);
-      }
+      .content-area { max-width: 900px; padding-top: 60px; margin: 0 auto; }
+      .page-header { text-align: center; margin-bottom: 20px; animation: fadeInUp 0.5s ease-out; }
+      .page-header .page-title { font-weight: 800; font-size: 2.2rem; }
+      .page-header .page-subtitle { color: var(--text-secondary); }
+      
       .instruction-text {
-        text-align: center;
-        font-size: 1.1rem;
-        font-weight: 500;
-        color: var(--primary-color);
-        background-color: var(--primary-light);
-        border: 1px solid var(--primary-border);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        padding: 15px;
-        border-radius: 12px;
-        margin-bottom: 40px;
-        animation: fadeInUp 0.5s ease-out 0.2s forwards;
-        opacity: 0;
+        text-align: center; font-size: 1.1rem; font-weight: 500;
+        color: var(--primary-color); background-color: var(--primary-light);
+        border: 1px solid var(--primary-border); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        padding: 15px; border-radius: 12px; margin-bottom: 40px;
+        animation: fadeInUp 0.5s ease-out 0.2s forwards; opacity: 0;
       }
-      .instruction-text .fa-lightbulb {
-        margin-right: 8px;
-      }
+      .instruction-text .fa-lightbulb { margin-right: 8px; }
 
       .job-card {
-        display: flex;
-        align-items: center;
-        gap: 24px;
-        background-color: white;
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 20px;
-        cursor: pointer;
-        transition: all 0.3s ease-in-out;
-        box-shadow: var(--card-shadow);
-        opacity: 0;
+        display: flex; align-items: center; gap: 24px;
+        background-color: white; border: 1px solid var(--border-color);
+        border-radius: 16px; padding: 24px; margin-bottom: 20px;
+        cursor: pointer; transition: all 0.3s ease-in-out;
+        box-shadow: var(--card-shadow); opacity: 0;
         animation: fadeInUp 0.7s ease-out forwards;
         animation-delay: calc(var(--animation-order) * 0.15s);
       }
-      .job-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: var(--card-hover-shadow);
-        border-color: var(--primary-color);
-      }
-      .job-card.selected {
-        transform: translateY(-8px) scale(1.02);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 4px var(--selected-glow), var(--card-hover-shadow);
-      }
-      .job-card.pulse {
-        border-color: var(--primary-color);
-      }
-
-      .job-card-rank-score {
-        flex-shrink: 0;
-        text-align: center;
-      }
-      .rank-badge {
-        font-size: 1.2rem;
-        font-weight: 800;
-        color: var(--text-secondary);
-        margin-bottom: 15px;
-      }
-      .rank-badge .fa-crown {
-        color: var(--gold-color);
-        margin-right: 4px;
-      }
-      .rank-1 .fa-crown {
-        font-size: 1.4rem;
-      }
-
-      .progress-circle {
-        position: relative;
-        width: 100px;
-        height: 100px;
-      }
-      .progress-circle svg {
-        transform: rotate(-90deg);
-      }
-      .progress-circle .bg-circle {
-        fill: none;
-        stroke: var(--progress-bar-bg);
-        stroke-width: 10;
-      }
+      .job-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: var(--card-hover-shadow); border-color: var(--primary-color); }
+      .job-card.selected { transform: translateY(-8px) scale(1.02); border-color: var(--primary-color); box-shadow: 0 0 0 4px var(--selected-glow), var(--card-hover-shadow); }
+      
+      .job-card-rank-score { flex-shrink: 0; text-align: center; }
+      .rank-badge { font-size: 1.2rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 15px; }
+      .rank-badge .fa-crown { color: var(--gold-color); margin-right: 4px; }
+      
+      .progress-circle { position: relative; width: 100px; height: 100px; }
+      .progress-circle svg { transform: rotate(-90deg); }
+      .progress-circle .bg-circle { fill: none; stroke: var(--progress-bar-bg); stroke-width: 10; }
       .progress-circle .fg-circle {
-        fill: none;
-        stroke: var(--primary-color);
-        stroke-width: 10;
-        stroke-linecap: round;
-        stroke-dasharray: 283;
-        stroke-dashoffset: 283;
+        fill: none; stroke: var(--primary-color); stroke-width: 10; stroke-linecap: round;
+        stroke-dasharray: 283; stroke-dashoffset: 283;
         animation: progress-bar-fill 2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         animation-delay: calc(var(--animation-order) * 0.15s + 0.5s);
       }
-      .progress-circle .score-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: var(--primary-color);
-      }
+      .progress-circle .score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; font-weight: 700; color: var(--primary-color); }
 
-      .job-card-details {
-        flex-grow: 1;
-      }
-      .job-title {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 4px;
-      }
-      .company-name {
-        font-size: 1rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-      }
-      .job-meta-info {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
-        margin-top: 8px;
-        margin-bottom: 16px;
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-      }
-      .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .tech-stack {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .tech-tag {
-        background-color: var(--primary-light);
-        color: var(--primary-color);
-        font-size: 0.85rem;
-        font-weight: 600;
-        padding: 5px 12px;
-        border-radius: 20px;
-      }
-
-      .report-fab-container {
-        position: fixed;
-        bottom: 40px;
-        left: calc(50% + 40px);
-        transform: translateX(-50%);
-        z-index: 1000;
-        pointer-events: none;
-        transition: left 0.3s ease-in-out;
-      }
+      .job-card-details { flex-grow: 1; }
+      .job-title { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+      .company-name { font-size: 1rem; font-weight: 500; color: var(--text-secondary); }
+      .job-meta-info { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; margin-bottom: 16px; color: var(--text-secondary); font-size: 0.9rem; }
+      .meta-item { display: flex; align-items: center; gap: 6px; }
+      .tech-stack { display: flex; flex-wrap: wrap; gap: 8px; }
+      .tech-tag { background-color: var(--primary-light); color: var(--primary-color); font-size: 0.85rem; font-weight: 600; padding: 5px 12px; border-radius: 20px; }
+      
+      .report-fab-container { position: fixed; bottom: 40px; left: calc(50% + 40px); transform: translateX(-50%); z-index: 1000; pointer-events: none; transition: left 0.3s ease-in-out; }
+      body:has(.sidebar:hover) .report-fab-container { left: calc(50% + 120px); }
       .generate-btn {
-        background: var(--primary-color);
-        color: white;
-        font-size: 1.1rem;
-        font-weight: 700;
-        padding: 15px 35px;
-        border-radius: 30px;
-        border: none;
-        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
-        cursor: pointer;
+        background: var(--primary-color); color: white; font-size: 1.1rem; font-weight: 700;
+        padding: 15px 35px; border-radius: 30px; border: none;
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); cursor: pointer;
         transition: all 0.3s ease-in-out;
-        opacity: 0;
-        transform: translateY(20px);
-        pointer-events: auto;
+        /* 초기에는 보이지 않도록 수정 */
+        opacity: 0; transform: translateY(20px); pointer-events: none;
       }
-      body:has(.sidebar:hover) .report-fab-container {
-        left: calc(50% + 120px);
-      }
-      .generate-btn.visible {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .generate-btn:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
-        filter: brightness(110%);
-      }
-      .generate-btn .fa-wand-magic-sparkles {
-        margin-right: 10px;
-      }
+      .generate-btn.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+      .generate-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4); filter: brightness(110%); }
+      .generate-btn .fa-wand-magic-sparkles { margin-right: 10px; }
     </style>
   </head>
   <body class="resume-page">
     {% include '_sidebar.html' %}
+    {% include '_messages.html' %}
 
     <div class="content-area">
       <div class="page-header">
         <h1 class="page-title">AI 추천 결과</h1>
-        <p class="page-subtitle">
-          이력서를 기반으로 가장 적합한 공고를 찾았습니다.
-        </p>
+        <p class="page-subtitle">선택하신 이력서를 기반으로 가장 적합한 공고를 찾았습니다.</p>
       </div>
 
       <div class="instruction-text">
-        <i class="fas fa-lightbulb"></i>분석하고 싶은 공고를 클릭하여 선택한 후,
-        하단 버튼으로 리포트를 생성하세요.
+        <i class="fas fa-lightbulb"></i>분석하고 싶은 공고를 클릭하여 선택한 후, 하단 버튼으로 리포트를 생성하세요.
       </div>
 
-      <form
-        action="{% url 'generate_final_report' %}"
-        method="post"
-        id="final-report-form"
-      >
+      <!-- 최종 리포트 생성 form -->
+      <form action="{% url 'generate_final_report' %}" method="post" id="final-report-form">
         {% csrf_token %}
         <input type="hidden" name="resume_ids" value="{{ resume_ids_str }}" />
 
@@ -316,8 +149,8 @@
             style="--animation-order: {{ forloop.counter0 }};"
           >
             <div class="job-card-rank-score">
-              <div class="rank-badge rank-{{ forloop.counter }}">
-                <i class="fas fa-crown"></i>
+              <div class="rank-badge">
+                {% if forloop.counter <= 3 %}<i class="fas fa-crown"></i>{% endif %}
                 <span>{{ forloop.counter }}위</span>
               </div>
               <div
@@ -334,51 +167,35 @@
 
             <div class="job-card-details">
               <h5 class="job-title">{{ job.제목 }}</h5>
-
-              {% if job.회사명 %}
-              <p class="company-name">{{ job.회사명 }}</p>
-              {% endif %}
+              {% if job.회사명 %}<p class="company-name">{{ job.회사명 }}</p>{% endif %}
 
               <div class="job-meta-info">
-                {% if job.경력 %}
-                <span class="meta-item"
-                  ><i class="fas fa-briefcase"></i> {{ job.경력 }}</span
-                >
-                {% endif %} {% if job.근무지 %}
-                <span class="meta-item"
-                  ><i class="fas fa-map-marker-alt"></i> {{ job.근무지 }}</span
-                >
-                {% endif %}
+                {% if job.경력 %}<span class="meta-item"><i class="fas fa-briefcase"></i> {{ job.경력 }}</span>{% endif %}
+                {% if job.근무지 %}<span class="meta-item"><i class="fas fa-map-marker-alt"></i> {{ job.근무지 }}</span>{% endif %}
               </div>
 
               {% if job.기술스택 %}
               <div class="tech-stack">
-                {% for tech in job.기술스택|slice:":5" %}
-                <span class="tech-tag">{{ tech }}</span>
-                {% endfor %}
+                {% for tech in job.기술스택|slice:":5" %}<span class="tech-tag">{{ tech }}</span>{% endfor %}
               </div>
               {% endif %}
             </div>
 
-            <input
-              type="checkbox"
-              class="job-checkbox"
-              name="selected_jobs"
-              value="{{ job.job_id }}"
-              style="display: none"
-            />
+            <input type="checkbox" class="job-checkbox" name="selected_jobs" value="{{ job.job_id }}" style="display: none" />
           </div>
           {% empty %}
           <div class="alert alert-warning text-center" role="alert">
-            추천된 공고가 없습니다. 다른 이력서를 선택하여 다시 시도해보세요.
+            AI가 추천할 만한 공고를 찾지 못했습니다. 다른 이력서를 선택하여 다시 시도해보세요.
+            <a href="{% url 'resume_list' %}" class="alert-link">이력서 목록으로 돌아가기</a>
           </div>
           {% endfor %}
         </div>
 
         <div class="report-fab-container">
+          <!-- 스크립트에서 제어하므로 초기 버튼 텍스트는 간단하게 -->
           <button type="submit" class="generate-btn" id="generate-report-btn">
             <i class="fas fa-wand-magic-sparkles"></i>
-            리포트 생성할 공고 선택
+            리포트 생성하기
           </button>
         </div>
       </form>
@@ -389,39 +206,19 @@
         const jobCards = document.querySelectorAll(".job-card");
         const submitButton = document.getElementById("generate-report-btn");
         const form = document.getElementById("final-report-form");
-        let pulseInterval;
-
-        function startPulseAnimation() {
-          if (jobCards.length === 0) return;
-          const topCard = jobCards[0];
-
-          pulseInterval = setInterval(() => {
-            topCard.classList.add("pulse");
-            setTimeout(() => {
-              topCard.classList.remove("pulse");
-            }, 2000);
-          }, 4000);
-        }
-
-        function stopPulseAnimation() {
-          clearInterval(pulseInterval);
-          if (jobCards.length > 0) {
-            jobCards[0].classList.remove("pulse");
-          }
-        }
-
-        setTimeout(() => {
-          startPulseAnimation();
-        }, 1500);
 
         jobCards.forEach((card) => {
           card.addEventListener("click", function () {
-            if (this.classList.contains("pulse")) {
-              stopPulseAnimation();
+            // 하나만 선택되도록 수정 (기존 선택 해제)
+            const currentlySelected = document.querySelector(".job-card.selected");
+            if (currentlySelected && currentlySelected !== this) {
+                currentlySelected.classList.remove("selected");
+                currentlySelected.querySelector('.job-checkbox').checked = false;
             }
+
             this.classList.toggle("selected");
             const checkbox = this.querySelector(".job-checkbox");
-            checkbox.checked = !checkbox.checked;
+            checkbox.checked = this.classList.contains("selected");
             updateButtonState();
           });
         });
@@ -429,16 +226,20 @@
         function updateButtonState() {
           const selectedCards = document.querySelectorAll(".job-card.selected");
           if (selectedCards.length > 0) {
-            stopPulseAnimation();
             submitButton.classList.add("visible");
-            submitButton.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> ${selectedCards.length}개 공고로 리포트 생성`;
+            submitButton.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> 선택한 공고로 리포트 생성`;
           } else {
-            startPulseAnimation();
             submitButton.classList.remove("visible");
           }
         }
 
-        form.addEventListener("submit", function () {
+        form.addEventListener("submit", function (e) {
+          const selectedCount = document.querySelectorAll(".job-card.selected").length;
+          if (selectedCount === 0) {
+              e.preventDefault();
+              alert("리포트를 생성할 공고를 선택해주세요.");
+              return;
+          }
           submitButton.disabled = true;
           submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 리포트 생성 중...`;
         });

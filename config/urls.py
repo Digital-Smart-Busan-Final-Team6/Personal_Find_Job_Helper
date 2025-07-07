@@ -13,6 +13,7 @@ urlpatterns = [
     path('resumes/edit/<int:resume_id>/', views.resume_edit_view, name='resume_edit'),
     path('resumes/delete/<int:resume_id>/', views.resume_delete_view, name='resume_delete'),
     path('resumes/export/json/', views.export_resumes_to_json, name='export_resumes_json'),
+    path('resumes/set-selection/', views.set_selected_resumes, name='set_selected_resumes'),
     path('export-resumes-to-json/', views.export_resumes_to_json, name='export_resumes_to_json'),
     path('reports/job-search/', views.job_search_report_page, name='job_search_report'),
     path('reports/recommending/', views.recommend_recommending_view, name='recommend_recommending'),
