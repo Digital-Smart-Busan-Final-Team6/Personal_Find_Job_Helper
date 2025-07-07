@@ -432,6 +432,58 @@ def recommend_result_view(request):
 
     return render(request, "recommend_result.html", context)
 
+
+def format_resume_to_markdown(resume: Resume) -> str:
+    """Resume 객체를 마크다운 형식의 문자열로 변환합니다."""
+    md_parts = []
+
+    # 1. 제목
+    if resume.title:
+        md_parts.append(f"# {resume.title}")
+        md_parts.append("")
+
+    # 2. 기본 정보
+    md_parts.append("## 기본 정보")
+    if resume.education_level:
+        md_parts.append(f"- **최종 학력**: {resume.education_level}")
+    if resume.university or resume.major:
+        md_parts.append(f"- **학교/전공**: {resume.university} / {resume.major}")
+    if resume.gpa:
+        md_parts.append(f"- **학점**: {resume.gpa}")
+    if resume.experience_years is not None:
+        md_parts.append(f"- **총 경력**: {resume.experience_years}년")
+    if resume.job:
+        md_parts.append(f"- **희망 직무**: {resume.job}")
+    if resume.location:
+        md_parts.append(f"- **희망 근무지**: {resume.location}")
+    md_parts.append("\n---\n")
+
+    # 3. 보유 기술
+    if resume.skills:
+        md_parts.append("## 보유 기술")
+        try:
+            # 스킬이 JSON 형식일 경우 (e.g., [{"value":"Python"},...])
+            skills_list = json.loads(resume.skills)
+            skill_values = [item.get('value') for item in skills_list if item.get('value')]
+            md_parts.append(f"- {', '.join(skill_values)}")
+        except (json.JSONDecodeError, TypeError):
+            # 일반 텍스트나 콤마로 구분된 문자열일 경우
+            md_parts.append(f"- {resume.skills}")
+        md_parts.append("\n---\n")
+
+    # 4. 경험 / 활동 / 교육
+    if resume.experience or resume.certifications:
+        md_parts.append("## 경험 / 활동 / 교육")
+        if resume.experience:
+            md_parts.append(resume.experience)
+            md_parts.append("")
+        if resume.certifications:
+            md_parts.append("## 자격증") # 또는 다른 제목
+            md_parts.append(resume.certifications)
+            md_parts.append("")
+
+    return "\n".join(md_parts)
+
 # [View 11] 최종 리포트 생성 페이지 뷰 ---
 def generate_final_report_view(request):
     if request.method != "POST":
@@ -444,6 +496,7 @@ def generate_final_report_view(request):
         messages.error(request, "이력서와 채용 공고를 선택해야 합니다.")
         return redirect("resume_list")
 
+    # ✨ 사용자님이 확인해주신 대로 이력서 ID와 공고 ID를 추출합니다.
     main_resume_id = resume_ids_str.split(",")[0]
     selected_job_id_str = selected_job_ids[0]
 
@@ -462,6 +515,7 @@ def generate_final_report_view(request):
             "skills","experience","certifications",
         ],
     )
+    resume_dict['title'] = resume_obj.title
 
     # 공고 상세 정보 로드
     job_detail = None
@@ -474,7 +528,7 @@ def generate_final_report_view(request):
     except Exception as e:
         print(f"공고 정보 조회 중 오류 발생: {e}")
 
-    # Agent 호출 및 리포트 생성
+    # Agent 호출 및 리포트 생성 (기존과 동일)
     agent = get_agent_chain(mode="job")
     if not request.session.session_key:
         request.session.create()
@@ -491,27 +545,50 @@ def generate_final_report_view(request):
     중요: resume, job_detail 파라미터에 위의 JSON 데이터를 정확히 전달해 주세요.
     """
 
-    report_markdown = "### 분석 실패\nAI 리포트 생성 중 오류가 발생했습니다."
+    clean_report = "### 분석 실패\nAI 리포트 생성 중 오류가 발생했습니다."
     try:
         result = agent.invoke(
             {"input": prompt},
             config={"configurable": {"session_id": session_id}},
         )
         agent_output = result.get("output", "").strip()
-
-        # --- ✨ 여기가 핵심 수정 부분입니다! ✨ ---
-        # Agent가 생성한 "Answer:" 접두사를 제거합니다.
-        # 기존에 작성하신 코드를 그대로 활용하되, 변수명만 agent_output으로 맞춥니다.
+        
         clean_report = re.sub(r"^\s*\**Answer\**\s*:?\s*", "", agent_output, flags=re.IGNORECASE).strip()
         
-        # 맨 앞에 남을 수 있는 '**'도 한번 더 처리합니다.
         if clean_report.startswith("**"):
             clean_report = clean_report[2:].strip()
 
     except Exception as e:
-        clean_report = f"### 리포트 생성 오류\n{e}" # 오류 발생 시 clean_report에 할당
+        clean_report = f"### 리포트 생성 오류\n{e}"
 
-    # 리포트에서 매칭 키워드 추출하기
+    # --- ✨ 리포트 파일 저장 로직 ✨ ---
+    try:
+        # 1. 디렉토리 이름 생성 (기존과 동일)
+        report_dir_name = f"report_set_{main_resume_id}_{selected_job_id_str}"
+        report_path = settings.BASE_DIR / "exported_reports" / report_dir_name
+        report_path.mkdir(parents=True, exist_ok=True)
+
+        # 2. AI 분석 결과 (report.md) 저장 (기존과 동일)
+        with open(report_path / "report.md", "w", encoding="utf-8") as f:
+            f.write(clean_report)
+
+        # ✨ 3. 이력서 정보를 Markdown 형식으로 변환하여 저장
+        resume_markdown = format_resume_to_markdown(resume_obj)
+        with open(report_path / "resume.md", "w", encoding="utf-8") as f:
+            f.write(resume_markdown)
+
+        # 4. 공고 정보 (job_posting.json) 저장 (기존과 동일)
+        if job_detail:
+            with open(report_path / "job_posting.json", "w", encoding="utf-8") as f:
+                json.dump(job_detail, f, ensure_ascii=False, indent=2)
+
+        print(f"✅ 최종 리포트가 '{report_path}'에 성공적으로 저장되었습니다.")
+
+    except Exception as e:
+        print(f"🚨 최종 리포트 파일 저장 중 오류 발생: {e}")
+
+    # ... (키워드 추출 및 context 생성 로직은 기존과 동일) ...
+    # ... (이하 코드는 변경 없음) ...
     matching_keywords = []
     try:
         skills_in_resume = []
@@ -537,11 +614,10 @@ def generate_final_report_view(request):
         print(f"키워드 추출 중 오류 발생: {e}")
         matching_keywords = []
 
-    # 템플릿에 전달할 최종 데이터
     context = {
         "selected_resume": resume_obj,
         "matching_keywords": matching_keywords,
-        "report_markdown": clean_report, # 정제된 텍스트를 전달합니다.
+        "report_markdown": clean_report,
         "current_page": "resume",
         "switch_url_name": "home",
     }
